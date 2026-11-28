@@ -415,6 +415,123 @@ export const integrationDetailCopy = {
       },
     ],
   },
+  bitbucket: {
+    capabilities: [
+      {
+        title: {
+          defaultMessage: "Repository file sync",
+          id: "intBitbucketCapSyncTitle",
+          description: "Bitbucket capability title",
+        },
+        description: {
+          defaultMessage:
+            "Pull source language files from a Bitbucket branch into a project, on demand or on a schedule.",
+          id: "intBitbucketCapSyncDesc",
+          description: "Bitbucket capability description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Translation pull requests",
+          id: "intBitbucketCapPrTitle",
+          description: "Bitbucket capability title",
+        },
+        description: {
+          defaultMessage:
+            "Send approved translations back as one pull request per sync, in the repository's own file shapes.",
+          id: "intBitbucketCapPrDesc",
+          description: "Bitbucket capability description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "One workspace connection",
+          id: "intBitbucketCapConnTitle",
+          description: "Bitbucket capability title",
+        },
+        description: {
+          defaultMessage:
+            "An admin connects Bitbucket once, and scheduled syncs keep running without anyone signed in.",
+          id: "intBitbucketCapConnDesc",
+          description: "Bitbucket capability description",
+        },
+      },
+    ],
+    workflows: [
+      {
+        title: {
+          defaultMessage: "Keep locale files current",
+          id: "intBitbucketWf1Title",
+          description: "Bitbucket workflow example title",
+        },
+        steps: [
+          {
+            label: {
+              defaultMessage: "Source file changes on Bitbucket",
+              id: "intBitbucketWf1Step1",
+              description: "Bitbucket workflow step label",
+            },
+          },
+          {
+            label: {
+              defaultMessage: "Hyperlocalise syncs the project",
+              id: "intBitbucketWf1Step2",
+              description: "Bitbucket workflow step label",
+            },
+          },
+          {
+            label: {
+              defaultMessage: "Translations open a pull request",
+              id: "intBitbucketWf1Step3",
+              description: "Bitbucket workflow step label",
+            },
+          },
+        ],
+      },
+    ],
+    setupSteps: [
+      {
+        title: {
+          defaultMessage: "Connect Bitbucket",
+          id: "intBitbucketSetup1Title",
+          description: "Bitbucket setup step title",
+        },
+        description: {
+          defaultMessage: "An admin signs in to Bitbucket once from workspace Integrations.",
+          id: "intBitbucketSetup1Desc",
+          description: "Bitbucket setup step description",
+        },
+      },
+      {
+        title: {
+          defaultMessage: "Choose a repository",
+          id: "intBitbucketSetup2Title",
+          description: "Bitbucket setup step title",
+        },
+        description: {
+          defaultMessage:
+            "In a project's Sync settings, pick the repository, branch and where each language's files live.",
+          id: "intBitbucketSetup2Desc",
+          description: "Bitbucket setup step description",
+        },
+      },
+    ],
+    products: [
+      {
+        name: {
+          defaultMessage: "Project sync",
+          id: "intBitbucketProd1Name",
+          description: "Bitbucket product name",
+        },
+        description: {
+          defaultMessage:
+            "Sync Bitbucket locale files with Hyperlocalise projects and review translations before they merge.",
+          id: "intBitbucketProd1Desc",
+          description: "Bitbucket product description",
+        },
+      },
+    ],
+  },
   slack: {
     capabilities: [
       {

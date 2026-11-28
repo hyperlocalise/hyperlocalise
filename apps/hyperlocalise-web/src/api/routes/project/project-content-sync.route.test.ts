@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
@@ -25,6 +25,7 @@ const {
   getGitLabTokenAbilitiesMock,
   listGitLabMembershipProjectsMock,
   loadGitLabConnectionCredentialsMock,
+  loadBitbucketAccessMock,
   resolveApiAuthContextFromSessionMock,
 } = vi.hoisted(() => ({
   enqueueActivityLogEventMock: vi.fn(async () => ({ ok: true as const, value: {} })),
@@ -33,6 +34,7 @@ const {
   getGitLabTokenAbilitiesMock: vi.fn(),
   listGitLabMembershipProjectsMock: vi.fn(),
   loadGitLabConnectionCredentialsMock: vi.fn(),
+  loadBitbucketAccessMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -48,6 +50,11 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/bitbucket/pipes", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/bitbucket/pipes")>()),
+  loadBitbucketAccess: loadBitbucketAccessMock,
+}));
 
 vi.mock("@/lib/gitlab/connections", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/gitlab/connections")>()),
@@ -74,6 +81,7 @@ import { contentSyncFingerprintFromConfig } from "@/lib/agents/content-sync/cont
 import { db, schema } from "@/lib/database/client";
 import type { GitLabProject } from "@/lib/gitlab/types";
 import { err, ok } from "@/lib/primitives/result/results";
+import { bitbucketWebhookSecret } from "@/lib/bitbucket/webhooks";
 import { saveProjectContentSync } from "@/lib/projects/content-sync/project-content-sync";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -81,7 +89,8 @@ import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { createProjectTestFixture } from "./project.fixture";
 
 const enqueue = vi.fn(async () => ({ ids: ["queued"] }));
-const client = testClient<AppType>(createApp({ projectContentSyncQueue: { enqueue } }));
+const app = createApp({ projectContentSyncQueue: { enqueue } });
+const client = testClient<AppType>(app);
 const projectFixture = createProjectTestFixture();
 
 beforeAll(async () => {
@@ -89,6 +98,13 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  loadBitbucketAccessMock.mockReset();
+  loadBitbucketAccessMock.mockResolvedValue(
+    err({
+      code: "bitbucket_not_connected",
+      message: "Connect Bitbucket in Integrations before syncing.",
+    }),
+  );
   loadGitLabConnectionCredentialsMock.mockResolvedValue(ok(null));
   getGitLabTokenAbilitiesMock.mockReset();
   getGitLabTokenAbilitiesMock.mockResolvedValue(ok(null));
@@ -213,6 +229,7 @@ describe("project content sync routes", () => {
       ],
       gitlab: { connected: false, available: false, connectionId: null, tokenCanSend: null },
       gitlabConnections: [],
+      bitbucket: { connected: false, needsReconnect: false, available: false },
     });
 
     const refused = await routeFor().$put({ param, json: syncBody(repository.id) }, { headers });
@@ -428,6 +445,237 @@ describe("project content sync routes", () => {
     expect(await saved.json()).toMatchObject({ error: "content_sync_connection_required" });
   });
 
+  describe("Bitbucket", () => {
+    const repository = {
+      uuid: "{11111111-1111-4111-8111-111111111111}",
+      full_name: "acme/site",
+      name: "site",
+      mainbranch: { name: "main" },
+    };
+
+    function json(value: unknown, status = 200) {
+      return new Response(JSON.stringify(value), { status });
+    }
+
+    /**
+     * Bitbucket Cloud answering a token that reads one repository; `hooks` says how adding a
+     * webhook goes. Answers the calls made, for checking webhook adds and removals.
+     */
+    function stubBitbucket(options: { hooks?: "allowed" | "forbidden" } = {}) {
+      const calls: { method: string; path: string; body: unknown }[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: string | URL, init?: RequestInit) => {
+          const url = new URL(String(input));
+          const method = init?.method ?? "GET";
+          calls.push({
+            method,
+            path: url.pathname,
+            body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+          });
+          if (url.pathname === "/2.0/repositories") {
+            return json({ values: [repository] });
+          }
+          // Bitbucket ignores the case of a repository path.
+          if (url.pathname.toLowerCase() === "/2.0/repositories/acme/site") {
+            return json(repository);
+          }
+          if (url.pathname.toLowerCase() === "/2.0/repositories/acme/site/hooks") {
+            return options.hooks === "forbidden" ? json({}, 403) : json({ uuid: "{hook-1}" }, 201);
+          }
+          if (url.pathname.toLowerCase().startsWith("/2.0/repositories/acme/site/hooks/")) {
+            return new Response(null, { status: 204 });
+          }
+          return json({}, 404);
+        }),
+      );
+      return calls;
+    }
+
+    function signedPush(projectId: string, branch: string, signature?: string) {
+      const body = JSON.stringify({
+        repository: { uuid: repository.uuid },
+        push: { changes: [{ new: { type: "branch", name: branch } }] },
+      });
+      const sign = createHmac("sha256", bitbucketWebhookSecret(projectId))
+        .update(body)
+        .digest("hex");
+      return app.request(
+        `http://localhost/api/webhooks/bitbucket/content-sync/${encodeURIComponent(projectId)}`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-event-key": "repo:push",
+            "x-hub-signature": signature ?? `sha256=${sign}`,
+          },
+          body,
+        },
+      );
+    }
+
+    function bitbucketBody(overrides: Record<string, unknown> = {}) {
+      return {
+        schedule: "manual" as const,
+        syncConfig: {
+          provider: "bitbucket" as const,
+          connectionId: repository.uuid,
+          resourceKey: "Acme/Site",
+          providerFolder: "locales",
+          projectFolder: "bitbucket/acme/site",
+          pathTemplate: "{{locale}}.json",
+          ...overrides,
+        },
+      };
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("lists the workspace connection's repositories and saves a sync", async () => {
+      stubBitbucket();
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
+
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
+      const body = await connections.json();
+      expect(body).toMatchObject({
+        bitbucket: { connected: true, needsReconnect: false, available: true },
+      });
+      expect("connections" in body && body.connections).toContainEqual({
+        provider: "bitbucket",
+        connectionId: repository.uuid,
+        resourceKey: "acme/site",
+        branch: "main",
+        canSend: null,
+        canRead: true,
+      });
+
+      const put = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(put.status).toBe(200);
+      const putBody = (await put.json()) as { sync: { syncConfig: Record<string, unknown> } };
+      expect(putBody.sync.syncConfig).toMatchObject({
+        provider: "bitbucket",
+        resourceKey: "acme/site",
+        pathTemplate: "{{locale}}.json",
+      });
+    });
+
+    it("refuses a repository whose path now names another one, or a workspace with no connection", async () => {
+      stubBitbucket();
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const unconnected = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(unconnected.status).toBe(400);
+      expect(await unconnected.json()).toMatchObject({
+        error: "content_sync_bitbucket_not_connected",
+      });
+
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
+      const replaced = await routeFor().$put(
+        { param, json: bitbucketBody({ connectionId: "{22222222-2222-4222-8222-222222222222}" }) },
+        { headers },
+      );
+      expect(replaced.status).toBe(400);
+      expect(await replaced.json()).toMatchObject({
+        error: "content_sync_bitbucket_repository_not_found",
+      });
+    });
+
+    it("adds a push webhook when Sync on push is on, runs on a push to the branch, and removes it when off", async () => {
+      const calls = stubBitbucket();
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const saved = await routeFor().$put(
+        { param, json: bitbucketBody({ syncOnPush: true }) },
+        { headers },
+      );
+      expect(saved.status).toBe(200);
+      const savedBody = (await saved.json()) as { sync: { syncConfig: Record<string, unknown> } };
+      expect(savedBody.sync.syncConfig).toMatchObject({
+        syncOnPush: true,
+        bitbucketWebhookId: "{hook-1}",
+      });
+      const added = calls.find((call) => call.method === "POST" && call.path.endsWith("/hooks"));
+      expect(added?.body).toMatchObject({
+        url: `https://app.example.test/api/webhooks/bitbucket/content-sync/${project.id}`,
+        events: ["repo:push"],
+        active: true,
+      });
+      // Saving again with the same repository keeps the webhook rather than adding another.
+      await routeFor().$put({ param, json: bitbucketBody({ syncOnPush: true }) }, { headers });
+      expect(calls.filter((call) => call.method === "POST").length).toBe(1);
+
+      enqueue.mockClear();
+      expect((await signedPush(project.id, "feature/x")).status).toBe(204);
+      expect(enqueue).not.toHaveBeenCalled();
+      expect((await signedPush(project.id, "main", "sha256=" + "0".repeat(64))).status).toBe(401);
+      expect((await signedPush(project.id, "main")).status).toBe(202);
+      expect(enqueue).toHaveBeenCalledTimes(1);
+      const runs = await routeFor().$get({ param }, { headers });
+      const runsBody = (await runs.json()) as { contentSync: { runs: { trigger: string }[] } };
+      expect(runsBody.contentSync.runs[0]?.trigger).toBe("push");
+
+      await db
+        .update(schema.projectContentSyncRuns)
+        .set({ status: "succeeded", completedAt: new Date() })
+        .where(eq(schema.projectContentSyncRuns.projectId, project.id));
+      const off = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      const offBody = (await off.json()) as { sync: { syncConfig: Record<string, unknown> } };
+      expect(offBody.sync.syncConfig.bitbucketWebhookId).toBeUndefined();
+      expect(
+        calls.some(
+          (call) =>
+            call.method === "DELETE" && call.path.toLowerCase().endsWith("/hooks/%7bhook-1%7d"),
+        ),
+      ).toBe(true);
+      // Pushes are ignored once Sync on push is off.
+      expect((await signedPush(project.id, "main")).status).toBe(204);
+    });
+
+    it("refuses to save Sync on push when Bitbucket won't add the webhook", async () => {
+      stubBitbucket({ hooks: "forbidden" });
+      loadBitbucketAccessMock.mockResolvedValue(ok({ accessToken: "bitbucket-token" }));
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const saved = await routeFor().$put(
+        { param, json: bitbucketBody({ syncOnPush: true }) },
+        { headers },
+      );
+
+      expect(saved.status).toBe(400);
+      expect(await saved.json()).toMatchObject({ error: "content_sync_bitbucket_webhook_failed" });
+    });
+
+    it("says Bitbucket must be connected again when the connection lapsed", async () => {
+      stubBitbucket();
+      loadBitbucketAccessMock.mockResolvedValue(
+        err({ code: "bitbucket_needs_reconnect", message: "Reconnect Bitbucket in Integrations." }),
+      );
+      const { admin, project } = await seedWorkspace();
+      const headers = await projectFixture.authHeadersFor(admin);
+      const param = paramFor(admin, project.id);
+
+      const connections = await routeFor().connections.$get({ param, query: {} }, { headers });
+      expect(await connections.json()).toMatchObject({
+        bitbucket: { connected: true, needsReconnect: true, available: false },
+      });
+      const saved = await routeFor().$put({ param, json: bitbucketBody() }, { headers });
+      expect(saved.status).toBe(400);
+      expect(await saved.json()).toMatchObject({ error: "content_sync_bitbucket_needs_reconnect" });
+    });
+  });
+
   describe("GitLab", () => {
     const access = {
       id: "33333333-3333-4333-8333-333333333333",
@@ -502,6 +750,7 @@ describe("project content sync routes", () => {
         ],
         gitlab: { connected: true, available: true, connectionId: access.id, tokenCanSend: null },
         gitlabConnections: [],
+        bitbucket: { connected: false, needsReconnect: false, available: false },
       });
 
       const saved = await routeFor().$put({ param, json: gitlabBody() }, { headers });

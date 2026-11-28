@@ -103,4 +103,32 @@ describe("content sync config", () => {
       providerFolder: "locales",
     });
   });
+
+  it("asks a Bitbucket sync for a folder and language file paths, and runs it by hand", () => {
+    const bitbucket: ContentSyncConfig = {
+      provider: "bitbucket",
+      connectionId: "{11111111-1111-4111-8111-111111111111}",
+      resourceKey: "acme/web",
+      providerFolder: "locales",
+      projectFolder: "bitbucket/acme/web",
+    };
+
+    const missingTemplate = validateContentSyncConfig(bitbucket);
+    expect(isErr(missingTemplate) && missingTemplate.error.code).toBe(
+      "content_sync_path_template_required",
+    );
+    const missingFolder = validateContentSyncConfig({
+      ...bitbucket,
+      providerFolder: "",
+      pathTemplate: "{{locale}}.json",
+    });
+    expect(isErr(missingFolder) && missingFolder.error.code).toBe(
+      "content_sync_provider_folder_required",
+    );
+    expect(isOk(validateContentSyncConfig({ ...bitbucket, pathTemplate: "{{locale}}.json" }))).toBe(
+      true,
+    );
+    expect(resolveContentSyncTriggerConfig(bitbucket)).toEqual({ mode: "manual" });
+    expect(resolveContentSyncRepositoryTarget(bitbucket)).toEqual({ kind: "none" });
+  });
 });

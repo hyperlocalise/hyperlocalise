@@ -45,6 +45,6 @@ describe("pipes providers", () => {
     expect(pipesProvidersForCategory("cms")).toEqual(expect.arrayContaining(["sanity", "webflow"]));
     expect(pipesProvidersForCategory("guidelines")).toEqual(["google-drive", "notion"]);
     expect(pipesProvidersForCategory("collaboration")).toEqual(["atlassian", "linear"]);
-    expect(pipesProvidersForCategory("source-control")).toEqual(["gitlab"]);
+    expect(pipesProvidersForCategory("source-control")).toEqual(["bitbucket", "gitlab"]);
   });
 });

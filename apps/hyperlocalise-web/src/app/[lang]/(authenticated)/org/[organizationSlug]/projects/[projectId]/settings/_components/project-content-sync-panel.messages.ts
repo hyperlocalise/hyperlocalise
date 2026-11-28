@@ -53,10 +53,10 @@ export const projectContentSyncPanelMessages = defineMessages({
   },
   noRepositories: {
     defaultMessage:
-      "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
-    id: "BL4Aw/xqvM",
+      "Connect GitLab or Bitbucket in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+    id: "59k1Oji7ES",
     description:
-      "Shown in the project Sync panel when the workspace has no GitLab connection and the project has no sync",
+      "Shown in the project Sync panel when the workspace has no GitLab or Bitbucket connection and the project has no sync",
   },
   openIntegrations: {
     defaultMessage: "Open Integrations",
@@ -594,5 +594,90 @@ export const projectContentSyncPanelMessages = defineMessages({
     defaultMessage: "and {more, number} more",
     id: "RJLxYJk50b",
     description: "Follows a shortened list of hidden keys in a project sync run",
+  },
+  bitbucketBehaviour: {
+    defaultMessage:
+      "A Bitbucket sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a pull request.",
+    id: "uBQoDAnFtM",
+    description:
+      "Note under the repository service picker while Bitbucket is chosen, saying what a Bitbucket sync does",
+  },
+
+  noBitbucketConnection: {
+    defaultMessage: "Connect Bitbucket in Integrations to sync from Bitbucket.",
+    id: "VDqO0OE3Hj",
+    description:
+      "Shown in the project Sync panel when Bitbucket is chosen and the workspace has no Bitbucket connection",
+  },
+
+  bitbucketUnavailable: {
+    defaultMessage:
+      "Unable to list the Bitbucket repositories. Check the connection in Integrations.",
+    id: "0z0VW5nvlL",
+    description: "Shown in the project Sync panel when the Bitbucket repositories can't be read",
+  },
+
+  noBitbucketRepositories: {
+    defaultMessage:
+      "The Bitbucket account connected for this workspace can read no repositories. Connect an account that can see the repositories to sync.",
+    id: "mVzj5NvU0Q",
+    description:
+      "Shown in the project Sync panel when the Bitbucket connection lists no repositories",
+  },
+
+  errorBitbucketNotConnected: {
+    defaultMessage: "Connect Bitbucket in Integrations first.",
+    id: "q0t9uRfu4z",
+    description:
+      "Error shown when a Bitbucket project sync is saved while the workspace has no Bitbucket connection",
+  },
+
+  errorBitbucketRepositoryNotFound: {
+    defaultMessage:
+      "The Bitbucket account connected for this workspace can't see this repository. Choose it again.",
+    id: "M0gpS5u6yZ",
+    description:
+      "Error shown when the Bitbucket repository chosen for the project sync is not found",
+  },
+
+  errorBitbucketUnavailable: {
+    defaultMessage:
+      "Bitbucket couldn't be reached. Try again or check the connection in Integrations.",
+    id: "4GcT6yvYDX",
+    description: "Error shown when Bitbucket can't be reached while saving the project sync",
+  },
+
+  bitbucketNeedsReconnect: {
+    defaultMessage:
+      "Bitbucket needs to be connected again in Integrations before this project can sync.",
+    id: "fwR5UPPKjG",
+    description:
+      "Shown in the project Sync panel when the workspace's Bitbucket connection must be connected again",
+  },
+
+  syncOnPushLabel: {
+    defaultMessage: "Sync on push",
+    id: "RcaQCWz4GM",
+    description: "Label for the switch that runs a Bitbucket project sync on every push",
+  },
+
+  syncOnPushHelp: {
+    defaultMessage:
+      "Runs the sync each time the branch is pushed to. Needs admin access to the repository for the connected Bitbucket account.",
+    id: "OcHjEY/Ksm",
+    description: "Help under the Sync on push switch in the project Sync panel",
+  },
+
+  runOnPush: {
+    defaultMessage: "On push",
+    id: "de7OvnQtF+",
+    description: "Label for a sync run started by a push to the repository",
+  },
+
+  errorBitbucketWebhookFailed: {
+    defaultMessage:
+      "Bitbucket didn't let Hyperlocalise run this sync on push. The connected Bitbucket account needs admin access to the repository; turn off Sync on push to save without it.",
+    id: "E29VWroPvd",
+    description: "Error when Bitbucket refused to add the push webhook while saving a sync",
   },
 });

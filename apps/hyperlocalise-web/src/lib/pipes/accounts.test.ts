@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   authorizeDataIntegration: vi.fn(),
   updateDataIntegrationApiKey: vi.fn(),
   deleteUserConnectedAccount: vi.fn(),
+  getOrganizationConnectedAccount: vi.fn(),
+  deleteOrganizationConnectedAccount: vi.fn(),
   organizationSelect: vi.fn(),
 }));
 
@@ -50,6 +52,7 @@ import {
   createPipesAuthorizeUrl,
   deletePipesConnectedAccount,
   getPipesAccountStatus,
+  getPipesOrganizationAccount,
   loadPipesAccessToken,
   loadPipesApiKey,
   upsertPipesApiKey,
@@ -67,6 +70,8 @@ describe("pipes accounts", () => {
         authorizeDataIntegration: mocks.authorizeDataIntegration,
         updateDataIntegrationApiKey: mocks.updateDataIntegrationApiKey,
         deleteUserConnectedAccount: mocks.deleteUserConnectedAccount,
+        getOrganizationConnectedAccount: mocks.getOrganizationConnectedAccount,
+        deleteOrganizationConnectedAccount: mocks.deleteOrganizationConnectedAccount,
       },
     });
   });
@@ -379,5 +384,107 @@ describe("pipes accounts", () => {
       throw new Error("expected err result");
     }
     expect(result.error.code).toBe("pipes_not_connected");
+  });
+
+  describe("organization-owned connections", () => {
+    it("starts, reads and removes the organization's account rather than the person's own", async () => {
+      mocks.authorizeDataIntegration.mockResolvedValue({ url: "https://workos.test/auth" });
+      mocks.getAccessToken.mockResolvedValue({
+        active: true,
+        accessToken: { accessToken: "bb-token" },
+      });
+      mocks.deleteOrganizationConnectedAccount.mockResolvedValue(undefined);
+
+      await createPipesAuthorizeUrl({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+        workosUserId: "user_admin",
+        connectionOwner: "organization",
+      });
+      const token = await loadPipesAccessToken({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+        workosUserId: "user_admin",
+        connectionOwner: "organization",
+      });
+      await deletePipesConnectedAccount({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+        workosUserId: "user_admin",
+        connectionOwner: "organization",
+      });
+
+      expect(mocks.authorizeDataIntegration).toHaveBeenCalledWith({
+        slug: "bitbucket",
+        userId: "user_admin",
+        organizationId: "org_workos",
+        connectionOwner: "organization",
+      });
+      expect(isOk(token) && token.value).toBe("bb-token");
+      expect(mocks.getAccessToken).toHaveBeenCalledWith({
+        provider: "bitbucket",
+        userId: "user_admin",
+        organizationId: "org_workos",
+        connectionOwner: "organization",
+      });
+      expect(mocks.deleteOrganizationConnectedAccount).toHaveBeenCalledWith({
+        slug: "bitbucket",
+        organizationId: "org_workos",
+      });
+      expect(mocks.deleteUserConnectedAccount).not.toHaveBeenCalled();
+    });
+
+    it("reports who established the connection, and when that member has left", async () => {
+      mocks.getOrganizationConnectedAccount
+        .mockResolvedValueOnce({
+          state: "connected",
+          establishedByUserId: "user_admin",
+          accountDisplayName: "Acme",
+        })
+        .mockResolvedValueOnce({
+          state: "needs_reauthorization",
+          establishedByUserId: null,
+          stateReason: "establishing_member_membership_ended",
+        });
+
+      const connected = await getPipesOrganizationAccount({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+      });
+      const left = await getPipesOrganizationAccount({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+      });
+
+      expect(isOk(connected) && connected.value).toEqual({
+        connected: true,
+        needsReauthorization: false,
+        establisherLeft: false,
+        establishedByWorkosUserId: "user_admin",
+        accountName: "Acme",
+      });
+      expect(isOk(left) && left.value).toMatchObject({
+        connected: false,
+        needsReauthorization: true,
+        establisherLeft: true,
+      });
+    });
+
+    it("reports no connection when the organization has none", async () => {
+      mocks.getOrganizationConnectedAccount.mockRejectedValue(
+        new NotFoundException({
+          path: "/organizations/org_workos/connected_accounts/bitbucket",
+          requestID: "req_test_not_found",
+          message: "missing",
+        }),
+      );
+
+      const result = await getPipesOrganizationAccount({
+        provider: "bitbucket",
+        localOrganizationId: "org-local",
+      });
+
+      expect(isOk(result) && result.value.connected).toBe(false);
+    });
   });
 });

@@ -163,6 +163,7 @@ function renderPanel(
       tokenCanSend?: boolean | null;
     };
     gitlabConnections?: unknown[];
+    bitbucket?: { connected: boolean; needsReconnect?: boolean; available: boolean };
     runs?: unknown[];
   } = {},
 ) {
@@ -181,6 +182,7 @@ function renderPanel(
       ],
       gitlab: input.gitlab ?? { connected: false, available: false, connectionId: null },
       gitlabConnections: input.gitlabConnections ?? [],
+      bitbucket: input.bitbucket ?? { connected: false, needsReconnect: false, available: false },
     }),
   );
   api.put.mockResolvedValue(jsonResponse(200, { sync: savedSync }));
@@ -278,7 +280,7 @@ describe("ProjectContentSyncPanel", () => {
 
     expect(
       await screen.findByText(
-        "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+        "Connect GitLab or Bitbucket in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open Integrations" })).toHaveAttribute(
@@ -424,6 +426,78 @@ describe("ProjectContentSyncPanel", () => {
         "A sync is running. Remove the sync once it finishes.",
       ),
     );
+  });
+
+  describe("Bitbucket", () => {
+    it("sets up a new Bitbucket sync with its language file paths", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [
+          { provider: "bitbucket", connectionId: "{r1}", resourceKey: "acme/site", branch: "main" },
+        ],
+        bitbucket: { connected: true, available: true },
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      await user.click(await screen.findByRole("option", { name: "Bitbucket" }));
+      expect(screen.queryByRole("combobox", { name: /connection/ })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole("combobox", { name: "Repository" }));
+      await user.click(await screen.findByRole("option", { name: "acme/site" }));
+      expect(screen.getByLabelText("Branch")).toHaveAttribute("placeholder", "main");
+      await user.type(screen.getByLabelText("Repository folder"), "locales");
+      await user.type(screen.getByLabelText("Language file paths"), "{{{{locale}}.json");
+      expect(screen.getByLabelText("Project folder")).toHaveValue("bitbucket/acme/site");
+      await user.click(screen.getByRole("switch", { name: "Sync on push" }));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1));
+      expect(api.put).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: "project_1" },
+        json: {
+          schedule: "manual",
+          syncConfig: {
+            provider: "bitbucket",
+            connectionId: "{r1}",
+            resourceKey: "acme/site",
+            providerFolder: "locales",
+            projectFolder: "bitbucket/acme/site",
+            pathTemplate: "{{locale}}.json",
+            syncOnPush: true,
+          },
+        },
+      });
+    });
+
+    it("says Bitbucket must be connected again when the workspace connection lapsed", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [],
+        bitbucket: { connected: true, needsReconnect: true, available: false },
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      await user.click(await screen.findByRole("option", { name: "Bitbucket" }));
+      expect(
+        await screen.findByText(/Bitbucket needs to be connected again in Integrations/),
+      ).toBeInTheDocument();
+    });
+
+    it("points to Integrations when the workspace has no Bitbucket connection", async () => {
+      const user = userEvent.setup();
+      renderPanel({
+        sync: null,
+        connections: [],
+        gitlab: { connected: true, available: true, connectionId: null },
+      });
+
+      await user.click(await screen.findByRole("combobox", { name: "Repository service" }));
+      expect(await screen.findByRole("option", { name: "Bitbucket Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+    });
   });
 
   describe("GitLab", () => {
@@ -691,8 +765,15 @@ describe("ProjectContentSyncPanel", () => {
         "aria-disabled",
         "true",
       );
+      expect(screen.getByRole("option", { name: "Bitbucket Not set up" })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
       expect(
-        screen.getByText("Sync a GitHub repository from its Automation settings in Integrations."),
+        screen.getByText(/Sync a GitHub repository from its Automation settings in Integrations\./),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Connect Bitbucket in Integrations to sync from Bitbucket\./),
       ).toBeInTheDocument();
     });
 
@@ -710,7 +791,7 @@ describe("ProjectContentSyncPanel", () => {
         "true",
       );
       expect(
-        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
+        screen.getByText(/Connect GitLab in Integrations to sync from GitLab\./),
       ).toBeInTheDocument();
     });
 
@@ -728,7 +809,7 @@ describe("ProjectContentSyncPanel", () => {
         "true",
       );
       expect(
-        screen.getByText("Connect GitLab in Integrations to sync from GitLab."),
+        screen.getByText(/Connect GitLab in Integrations to sync from GitLab\./),
       ).toBeInTheDocument();
     });
 

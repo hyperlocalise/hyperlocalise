@@ -121,6 +121,59 @@ export const integrationCatalogCopy = {
       description: "GitLab integration marketing page meta description",
     },
   },
+  bitbucket: {
+    name: {
+      defaultMessage: "Bitbucket",
+      id: "intBitbucketName",
+      description: "Bitbucket integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage:
+        "Sync Bitbucket Cloud locale files with your projects and get translations back as a pull request.",
+      id: "intBitbucketTagline",
+      description: "Bitbucket integration description on the integrations page",
+    },
+    headline: {
+      defaultMessage: "Keep Bitbucket locale files in step with your translations",
+      id: "intBitbucketHeadline",
+      description: "Bitbucket integration marketing page headline",
+    },
+    overview: [
+      {
+        defaultMessage:
+          "Connect Bitbucket Cloud once for your workspace, then choose a repository in any project's Sync settings. Hyperlocalise pulls the source language files from the branch you choose.",
+        id: "intBitbucketOverview0",
+        description: "Bitbucket integration marketing overview paragraph",
+      },
+      {
+        defaultMessage:
+          "Approved translations go back as one pull request per sync, written in the same file shapes and language codes your repository already uses.",
+        id: "intBitbucketOverview1",
+        description: "Bitbucket integration marketing overview paragraph",
+      },
+    ],
+    productName: {
+      defaultMessage: "Bitbucket",
+      id: "intBitbucketProductName",
+      description: "Bitbucket integration product name on marketing detail page",
+    },
+    productDescription: {
+      defaultMessage: "Repository file sync and translation pull requests for Bitbucket Cloud.",
+      id: "intBitbucketProductDescription",
+      description: "Bitbucket integration product description on marketing detail page",
+    },
+    metadataTitle: {
+      defaultMessage: "Bitbucket localization with translation pull requests | Hyperlocalise",
+      id: "intBitbucketMetaTitle",
+      description: "Bitbucket integration marketing page meta title",
+    },
+    metadataDescription: {
+      defaultMessage:
+        "Sync Bitbucket Cloud locale files with Hyperlocalise projects and send approved translations back as a pull request.",
+      id: "intBitbucketMetaDescription",
+      description: "Bitbucket integration marketing page meta description",
+    },
+  },
   slack: {
     name: {
       defaultMessage: "Slack",

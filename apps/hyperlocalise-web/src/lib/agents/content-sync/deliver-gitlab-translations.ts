@@ -44,6 +44,8 @@ const logger = createLogger("content-sync-gitlab-delivery");
 
 /** Reads of existing language files at once; GitLab.com's per-user limits are far above this. */
 const READ_CONCURRENCY = 6;
+/** Past this many files without blob ids, a sync branch is rebuilt rather than read to compare. */
+const MAX_HASHED_BRANCH_FILES = 200;
 
 export type GitLabDeliverySummary = {
   /** Language files committed this run. */
@@ -242,6 +244,8 @@ export async function deliverGitLabTranslations(
     }
   }
 
+  // What the provider calls a review, for the text written into it.
+  const reviewNoun = input.syncConfig.provider === "bitbucket" ? "pull request" : "merge request";
   const review = await input.writer.findReview({
     sourceBranch: input.branchName,
     targetBranch: input.head.branch,
@@ -268,8 +272,8 @@ export async function deliverGitLabTranslations(
     const closed = await input.writer.closeReview({
       id: review.value.id,
       reason: waiting
-        ? "Closed by Hyperlocalise: nothing approved can be sent right now (the sync run lists language files waiting for approval, files that can't be read and paths that clash), so these translations are not to be merged. A later run opens a new merge request when there is something to send."
-        : "Closed by Hyperlocalise: nothing approved differs from the target branch any more, so these translations are not to be merged. A later run opens a new merge request when there is something to send.",
+        ? `Closed by Hyperlocalise: nothing approved can be sent right now (the sync run lists language files waiting for approval, files that can't be read and paths that clash), so these translations are not to be merged. A later run opens a new ${reviewNoun} when there is something to send.`
+        : `Closed by Hyperlocalise: nothing approved differs from the target branch any more, so these translations are not to be merged. A later run opens a new ${reviewNoun} when there is something to send.`,
     });
     if (isErr(closed)) {
       return withError(summary, closed.error);
@@ -320,15 +324,15 @@ export async function deliverGitLabTranslations(
       "",
       ...(sourceChanges > 0
         ? [
-            `**This merge request also changes source text:** ${sourceChanges === 1 ? "1 source file carries" : `${sourceChanges} source files carry`} text edited in Hyperlocalise.`,
+            `**This ${reviewNoun} also changes source text:** ${sourceChanges === 1 ? "1 source file carries" : `${sourceChanges} source files carry`} text edited in Hyperlocalise.`,
             "",
           ]
         : []),
       sourceChanges > 0
         ? "It writes approved Hyperlocalise translations, and source text edited in Hyperlocalise, back to the repository. It is rebuilt on each sync run, so make source text and translation fixes in Hyperlocalise rather than here."
-        : "This merge request writes approved Hyperlocalise translations back to the repository. It is rebuilt on each sync run, so make translation fixes in Hyperlocalise rather than here.",
+        : `This ${reviewNoun} writes approved Hyperlocalise translations back to the repository. It is rebuilt on each sync run, so make translation fixes in Hyperlocalise rather than here.`,
       "",
-      `- Language files in this merge request: ${changes.length - sourceChanges}`,
+      `- Language files in this ${reviewNoun}: ${changes.length - sourceChanges}`,
       `- Last sync run: ${shortRun}`,
     ].join("\n"),
     fingerprint,
@@ -430,11 +434,29 @@ async function inspectSyncBranch(
   if (isErr(files)) {
     return err(files.error);
   }
+  const blobIds = new Map(files.value.map((file) => [file.path, file.contentId]));
+  // A provider whose listings carry no blob ids (Bitbucket) has the files the branch's commit
+  // touches read and hashed here, so an unchanged branch is still recognised and not rebuilt.
+  const unknown = (commitPaths.value ?? []).filter(
+    (path) => blobIds.has(path) && blobIds.get(path) === null,
+  );
+  if (unknown.length > 0 && unknown.length <= MAX_HASHED_BRANCH_FILES) {
+    const reads = await mapWithConcurrency(unknown, READ_CONCURRENCY, async (path) => ({
+      path,
+      content: await input.reader.readFile({ commitSha: head.value.commitSha, path }),
+    }));
+    for (const read of reads) {
+      // A file that can't be read keeps no id, so the branch is rebuilt rather than trusted.
+      if (!isErr(read.content)) {
+        blobIds.set(read.path, gitBlobId(read.content.value, "sha1"));
+      }
+    }
+  }
   return ok({
     head: head.value,
     onTarget,
     commitPaths: commitPaths.value,
-    blobIds: new Map(files.value.map((file) => [file.path, file.contentId])),
+    blobIds,
   });
 }
 

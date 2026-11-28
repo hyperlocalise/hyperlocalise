@@ -91,6 +91,7 @@ function createOrgSlugClient(origin: string) {
       "slack-connect",
       "github-installation",
       "gitlab",
+      "bitbucket",
       "intercom",
       "sanity",
     ]),

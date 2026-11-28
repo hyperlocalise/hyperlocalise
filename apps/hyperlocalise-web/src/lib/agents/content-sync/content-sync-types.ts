@@ -17,17 +17,27 @@ export type WorkspaceAutomationKind = z.infer<typeof workspaceAutomationKindSche
 
 export const DEFAULT_WORKSPACE_AUTOMATION_KIND: WorkspaceAutomationKind = "agent";
 
-export const contentSyncProviderSchema = z.enum(["github", "gitlab", "contentful", "intercom"]);
+export const contentSyncProviderSchema = z.enum([
+  "github",
+  "gitlab",
+  "bitbucket",
+  "contentful",
+  "intercom",
+]);
 export type ContentSyncProvider = z.infer<typeof contentSyncProviderSchema>;
 
 /**
- * The upload surface of source file versions a GitLab sync stores. Ingest keeps the keys such
- * a version no longer has (hidden, not deleted), unlike other uploads.
+ * The upload surfaces of source file versions a GitLab or Bitbucket sync stores. Ingest keeps the
+ * keys such a version no longer has (hidden, not deleted), unlike other uploads.
  */
 export const GITLAB_CONTENT_SYNC_UPLOAD_SURFACE = "gitlab_content_sync";
+export const BITBUCKET_CONTENT_SYNC_UPLOAD_SURFACE = "bitbucket_content_sync";
 
 export function uploadSurfaceKeepsMissingKeys(uploadSurface: string | null): boolean {
-  return uploadSurface === GITLAB_CONTENT_SYNC_UPLOAD_SURFACE;
+  return (
+    uploadSurface === GITLAB_CONTENT_SYNC_UPLOAD_SURFACE ||
+    uploadSurface === BITBUCKET_CONTENT_SYNC_UPLOAD_SURFACE
+  );
 }
 
 /** `{{locale}}` marks where a file's language code sits in its path. */
@@ -61,6 +71,13 @@ export const contentSyncConfigSchema = z.object({
    * connections had names) runs with the workspace's default connection.
    */
   gitlabConnectionId: z.string().uuid().optional(),
+  /** Bitbucket: run the sync whenever the branch it reads is pushed to. */
+  syncOnPush: z.boolean().optional(),
+  /**
+   * Bitbucket: the push webhook the sync registered on the repository, so it can be removed.
+   * Set by the server only.
+   */
+  bitbucketWebhookId: z.string().trim().max(128).optional(),
 });
 export type ContentSyncConfig = z.infer<typeof contentSyncConfigSchema>;
 
@@ -80,12 +97,15 @@ export function normalizeContentSyncConfig(
 }
 
 export function contentSyncNeedsProviderFolder(provider: ContentSyncProvider): boolean {
-  return provider === "github" || provider === "gitlab";
+  return provider === "github" || provider === "gitlab" || provider === "bitbucket";
 }
 
-/** GitLab sync names each language's files, so a translated file is never read as source. */
+/**
+ * GitLab and Bitbucket syncs name each language's files, so a translated file is never read as
+ * source.
+ */
 export function contentSyncNeedsPathTemplate(provider: ContentSyncProvider): boolean {
-  return provider === "gitlab";
+  return provider === "gitlab" || provider === "bitbucket";
 }
 
 export function defaultContentSyncProjectFolder(input: {

@@ -149,7 +149,7 @@ const ANY_PROJECT_VALUE = "__any_project__";
 const UNASSIGNED_VALUE = "__unassigned__";
 const KEEP_ASSIGNEE_VALUE = "__keep_assignee__";
 // Content sync runs for GitHub and GitLab only; other providers fail at run time.
-const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github", "gitlab"];
+const CONTENT_SYNC_PROVIDERS: ContentSyncProvider[] = ["github", "gitlab", "bitbucket"];
 
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const ERROR_BEHAVIORS: VisualNodeErrorBehavior[] = ["stop", "continue", "branch"];
@@ -4301,7 +4301,9 @@ function ContentSyncConfigFields({
         description={
           config.provider === "gitlab" && !resources.gitlabConnected
             ? intl.formatMessage(messages.contentSyncGitLabNotConnected)
-            : undefined
+            : config.provider === "bitbucket" && !resources.bitbucketConnected
+              ? intl.formatMessage(messages.contentSyncBitbucketNotConnected)
+              : undefined
         }
         items={resourceOptions.map((option) => ({
           value: option.id,
@@ -5275,6 +5277,8 @@ function contentSyncProviderMessage(provider: ContentSyncProvider) {
       return messages.providerGithub;
     case "gitlab":
       return messages.providerGitlab;
+    case "bitbucket":
+      return messages.providerBitbucket;
     case "contentful":
       return messages.providerContentful;
     case "intercom":

@@ -1099,6 +1099,10 @@
     "defaultMessage": "Context request",
     "description": "Unresolved issue submenu: context request"
   },
+  "/NAL9lHNAV": {
+    "defaultMessage": "Connect Bitbucket in Integrations to choose a repository.",
+    "description": "Hint under the content sync repository picker when the workspace hasn't connected Bitbucket"
+  },
   "/O//bHFSie": {
     "defaultMessage": "Plain",
     "description": "Filter option for plain source strings"
@@ -1246,6 +1250,10 @@
   "/Y9GJUEqGi": {
     "defaultMessage": "Extract text at playhead",
     "description": "Video refinement workspace: extract"
+  },
+  "/YJ7SRIxSt": {
+    "defaultMessage": "Bitbucket couldn't be disconnected. Try again.",
+    "description": "Toast when disconnecting Bitbucket failed"
   },
   "/YdY1bOwtr": {
     "defaultMessage": "Ingest",
@@ -2354,6 +2362,10 @@
   "0yR+TXg23A": {
     "defaultMessage": "Credential name",
     "description": "Workflow credential name input"
+  },
+  "0z0VW5nvlL": {
+    "defaultMessage": "Unable to list the Bitbucket repositories. Check the connection in Integrations.",
+    "description": "Shown in the project Sync panel when the Bitbucket repositories can't be read"
   },
   "0zS1uyDfjF": {
     "defaultMessage": "@Hyperlocalise what is blocking the spring release?",
@@ -4819,6 +4831,10 @@
     "defaultMessage": "Save draft",
     "description": "Secondary action to save the current translation as a draft"
   },
+  "4GcT6yvYDX": {
+    "defaultMessage": "Bitbucket couldn't be reached. Try again or check the connection in Integrations.",
+    "description": "Error shown when Bitbucket can't be reached while saving the project sync"
+  },
   "4Gs0swvUKr": {
     "defaultMessage": "Pending verification",
     "description": "Pending linked domain status"
@@ -4830,6 +4846,10 @@
   "4HNfhY9OdS": {
     "defaultMessage": "Localisation audit",
     "description": "Heading of the domain deep localisation audit page"
+  },
+  "4HUdoLH/wM": {
+    "defaultMessage": "Bitbucket sign-in couldn't be started. Try again.",
+    "description": "Toast when the Bitbucket sign-in page couldn't be opened"
   },
   "4HX2beF1U5": {
     "defaultMessage": "the trigger",
@@ -5494,6 +5514,10 @@
   "59CKJeZUxb": {
     "defaultMessage": "Failure code",
     "description": "QA failure code label"
+  },
+  "59k1Oji7ES": {
+    "defaultMessage": "Connect GitLab or Bitbucket in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
+    "description": "Shown in the project Sync panel when the workspace has no GitLab or Bitbucket connection and the project has no sync"
   },
   "5A/N2rMBQL": {
     "defaultMessage": "Enable {providerName} tokens",
@@ -6514,6 +6538,10 @@
   "6TxlE4k/RL": {
     "defaultMessage": "Use Sonnet for longer drafts and review notes. Included on paid plans, and usage comes out of your monthly AI credit. Connect your own Anthropic key if you want Anthropic to bill this model instead.",
     "description": "Story for Claude Sonnet on the pricing page"
+  },
+  "6UMF+SVEkB": {
+    "defaultMessage": "Bitbucket disconnected. Project syncs that use it stop until it is connected again.",
+    "description": "Toast after Bitbucket was disconnected from the workspace"
   },
   "6V7dDBU2jk": {
     "defaultMessage": "Concept saved",
@@ -10227,10 +10255,6 @@
     "defaultMessage": "Versions",
     "description": "Heading for the saved versions of a translation in the activity panel"
   },
-  "BL4Aw/xqvM": {
-    "defaultMessage": "Connect GitLab in Integrations to sync this project. A GitHub repository syncs from its Automation settings there.",
-    "description": "Shown in the project Sync panel when the workspace has no GitLab connection and the project has no sync"
-  },
   "BLCf0utxhq": {
     "defaultMessage": "This string is locked. Unlock it to edit.",
     "description": "Banner shown in the CAT editor when the current string is locked"
@@ -10298,6 +10322,10 @@
   "BRAwhI1ueW": {
     "defaultMessage": "Locale",
     "description": "Label for the locale filter"
+  },
+  "BRe6NIwj7J": {
+    "defaultMessage": "Bitbucket's status couldn't be loaded. Refresh the page to try again.",
+    "description": "Integration row description when the Bitbucket connection status failed to load"
   },
   "BRhb3j8GLb": {
     "defaultMessage": "Route work automatically",
@@ -11847,6 +11875,10 @@
     "defaultMessage": "No relationships yet",
     "description": "Shown when an issue has no relationships"
   },
+  "DRBCBNJfgl": {
+    "defaultMessage": "Connected for the whole workspace as {account}.",
+    "description": "Integration row description when the workspace has connected Bitbucket; account is the Bitbucket account's name"
+  },
   "DRRpzdvulu": {
     "defaultMessage": "GitHub",
     "description": "Inbox conversation source label for the GitHub agent"
@@ -12167,6 +12199,10 @@
     "defaultMessage": "Build text from literals and named typed inputs.",
     "description": "Catalog description for the text template node"
   },
+  "DwC1To3cUZ": {
+    "defaultMessage": "Connected for the whole workspace.",
+    "description": "Integration row description when the workspace has connected Bitbucket"
+  },
   "DwaD/cBlPO": {
     "defaultMessage": "Web Search",
     "description": "Menu item and tool title for live web search"
@@ -12274,6 +12310,10 @@
   "E2040akAix": {
     "defaultMessage": "Project",
     "description": "Fallback project name in the sidebar while the project is loading"
+  },
+  "E29VWroPvd": {
+    "defaultMessage": "Bitbucket didn't let Hyperlocalise run this sync on push. The connected Bitbucket account needs admin access to the repository; turn off Sync on push to save without it.",
+    "description": "Error when Bitbucket refused to add the push webhook while saving a sync"
   },
   "E2gAmHwHN8": {
     "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to.",
@@ -18055,6 +18095,10 @@
     "defaultMessage": "This automation already has the maximum number of knowledge files.",
     "description": "Toast when the knowledge file count limit is reached"
   },
+  "M0gpS5u6yZ": {
+    "defaultMessage": "The Bitbucket account connected for this workspace can't see this repository. Choose it again.",
+    "description": "Error shown when the Bitbucket repository chosen for the project sync is not found"
+  },
   "M0znNdV8EN": {
     "defaultMessage": "AI search has no FAQ block to quote from this page.",
     "description": "Highlight copy for an AEO issue on the live preview"
@@ -18522,6 +18566,10 @@
   "MZotM1J5qc": {
     "defaultMessage": "{enabledCount} of {totalCount} repositories enabled.",
     "description": "Summary of enabled vs total GitHub repositories"
+  },
+  "Ma7ERYjIOT": {
+    "defaultMessage": "Disconnect",
+    "description": "Button that disconnects Bitbucket from the workspace"
   },
   "MaPGsx9bEV": {
     "defaultMessage": "Push to Braze",
@@ -20071,6 +20119,10 @@
     "defaultMessage": "Query Semrush SEO and traffic data through your connected API key.",
     "description": "Description for the Semrush automation tool when a connection exists"
   },
+  "OcHjEY/Ksm": {
+    "defaultMessage": "Runs the sync each time the branch is pushed to. Needs admin access to the repository for the connected Bitbucket account.",
+    "description": "Help under the Sync on push switch in the project Sync panel"
+  },
   "OcefiTvR3e": {
     "defaultMessage": "No team glossary is available for this project",
     "description": "Error when CAT add-to-glossary is missing a glossary target"
@@ -20266,6 +20318,10 @@
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML",
     "description": "Enterprise plan feature: SSO"
+  },
+  "OttlAapcwh": {
+    "defaultMessage": "Sync repository files with your projects. An admin connects it once for the whole workspace.",
+    "description": "Integration row description while the workspace hasn't connected Bitbucket"
   },
   "Ou1XbnhiV6": {
     "defaultMessage": "Gender",
@@ -22246,6 +22302,10 @@
   "RcXQkSHSjo": {
     "defaultMessage": "Download",
     "description": "Starts the filtered export download"
+  },
+  "RcaQCWz4GM": {
+    "defaultMessage": "Sync on push",
+    "description": "Label for the switch that runs a Bitbucket project sync on every push"
   },
   "RdJ/7jnqpq": {
     "defaultMessage": "Bulleted list",
@@ -25051,6 +25111,10 @@
     "defaultMessage": "A GitLab sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a merge request.",
     "description": "Note under the repository service picker while GitLab is chosen, saying what a GitLab sync does"
   },
+  "VDqO0OE3Hj": {
+    "defaultMessage": "Connect Bitbucket in Integrations to sync from Bitbucket.",
+    "description": "Shown in the project Sync panel when Bitbucket is chosen and the workspace has no Bitbucket connection"
+  },
   "VDvLBw/7C6": {
     "defaultMessage": "Add text manually",
     "description": "Video refinement workspace: add"
@@ -25198,6 +25262,10 @@
   "VO5BaUGRxq": {
     "defaultMessage": "Back",
     "description": "Back link from a Hyperlab detail page"
+  },
+  "VOHjKf9pLF": {
+    "defaultMessage": "Bitbucket",
+    "description": "Bitbucket provider label on the content sync action"
   },
   "VP21W4YIkX": {
     "defaultMessage": "{count, plural, one {# occurrence} other {# occurrences}} with different translations",
@@ -27410,6 +27478,10 @@
   "YSEvWFKZ+S": {
     "defaultMessage": "No screenshots are attached to this string.",
     "description": "Empty state when a string has no screenshot context"
+  },
+  "YSJXvZU9UJ": {
+    "defaultMessage": "Disconnecting…",
+    "description": "Button label while Bitbucket is being disconnected"
   },
   "YSNcbNZ9DI": {
     "defaultMessage": "Proofread",
@@ -30087,6 +30159,10 @@
     "defaultMessage": "Table",
     "description": "Document editor: block type"
   },
+  "c1kHhl0GZ4": {
+    "defaultMessage": "Every project sync in this workspace uses this Bitbucket account and reaches the repositories it can see. Use an account that belongs only to the repositories you sync.",
+    "description": "Note in the open Bitbucket row about what the shared connection reaches"
+  },
   "c2AEweY0yB": {
     "defaultMessage": "Queries",
     "description": "Activity log event type group for Queries"
@@ -30495,6 +30571,10 @@
     "defaultMessage": "Not checked yet. Run a scan to review translation quality.",
     "description": "QA review: notScanned"
   },
+  "cgfcUojHJf": {
+    "defaultMessage": "Allow pop-ups for this site to sign in to Bitbucket.",
+    "description": "Toast when the browser blocked the Bitbucket sign-in window"
+  },
   "cgtFQ4wcV0": {
     "defaultMessage": "Locks and hiding",
     "description": "Activity filter option that shows strings being locked, unlocked, hidden or unhidden"
@@ -30822,6 +30902,10 @@
   "d55NFCjisC": {
     "defaultMessage": "Start with the free localisation audit, then turn what you learn into content.",
     "description": "market-entry use case page: guide › body"
+  },
+  "d5HQ4rkEPj": {
+    "defaultMessage": "Bitbucket",
+    "description": "Integration row name for the workspace's Bitbucket Cloud connection"
   },
   "d5JCHvYpif": {
     "defaultMessage": "The whole project",
@@ -31310,6 +31394,10 @@
   "ddoWNAQtXz": {
     "defaultMessage": "Show more",
     "description": "Button label to expand secondary job properties"
+  },
+  "de7OvnQtF+": {
+    "defaultMessage": "On push",
+    "description": "Label for a sync run started by a push to the repository"
   },
   "deAxZHDk25": {
     "defaultMessage": "Start free trial",
@@ -33154,6 +33242,10 @@
   "fvon1YlGXk": {
     "defaultMessage": "Keyword or phrase",
     "description": "Keyword research screen: query"
+  },
+  "fwR5UPPKjG": {
+    "defaultMessage": "Bitbucket needs to be connected again in Integrations before this project can sync.",
+    "description": "Shown in the project Sync panel when the workspace's Bitbucket connection must be connected again"
   },
   "fwRsrXyIL0": {
     "defaultMessage": "Last run · 2 days ago · 842 pages crawled",
@@ -38035,6 +38127,10 @@
     "defaultMessage": "Revoked",
     "description": "Badge for a revoked CDN distribution"
   },
+  "mIVet/CyFm": {
+    "defaultMessage": "Bitbucket needs to be connected again before project syncs can run.",
+    "description": "Integration row description when the workspace's Bitbucket connection lapsed"
+  },
   "mIfS2KCWEo": {
     "defaultMessage": "Add an accepted word",
     "description": "Placeholder for the dictionary word field"
@@ -38206,6 +38302,10 @@
   "mVt29nZn4/": {
     "defaultMessage": "Integration Disconnected",
     "description": "Activity log event type label for disconnected integrations"
+  },
+  "mVzj5NvU0Q": {
+    "defaultMessage": "The Bitbucket account connected for this workspace can read no repositories. Connect an account that can see the repositories to sync.",
+    "description": "Shown in the project Sync panel when the Bitbucket connection lists no repositories"
   },
   "mWEB+wjuUJ": {
     "defaultMessage": "No members found.",
@@ -40874,6 +40974,10 @@
   "q0VCKEK9WI": {
     "defaultMessage": "Example setup",
     "description": "Heading for the developer snippet on Hyperlab home"
+  },
+  "q0t9uRfu4z": {
+    "defaultMessage": "Connect Bitbucket in Integrations first.",
+    "description": "Error shown when a Bitbucket project sync is saved while the workspace has no Bitbucket connection"
   },
   "q0vQCpRAVI": {
     "defaultMessage": "No files match this search.",
@@ -43967,6 +44071,10 @@
     "defaultMessage": "Customer.io push queued",
     "description": "Toast after a Customer.io push automation run is queued"
   },
+  "uBQoDAnFtM": {
+    "defaultMessage": "A Bitbucket sync reads the repository through its API, hides keys the repository dropped, and sends approved translations back in a pull request.",
+    "description": "Note under the repository service picker while Bitbucket is chosen, saying what a Bitbucket sync does"
+  },
   "uBd8YwvQLl": {
     "defaultMessage": "Loading full result…",
     "description": "Button label while the full tool result loads"
@@ -46046,6 +46154,10 @@
   "wufZJk5FA/": {
     "defaultMessage": "Guideline",
     "description": "Label for the guideline button in the app shell footer"
+  },
+  "wuzkTh2mjI": {
+    "defaultMessage": "The admin who connected Bitbucket has left this workspace. Connect it again so project syncs keep running.",
+    "description": "Integration row description when the admin who connected Bitbucket is no longer a member"
   },
   "wv0BYwWOsy": {
     "defaultMessage": "Sample data removed",

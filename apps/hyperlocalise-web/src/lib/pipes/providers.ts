@@ -17,6 +17,7 @@ import type { IntegrationCategory } from "@/lib/integrations/integration-catalog
 export const PIPES_PROVIDER_SLUGS = [
   "ahrefs",
   "atlassian",
+  "bitbucket",
   "braze",
   "customer-io",
   "gitlab",
@@ -44,6 +45,7 @@ export const PIPES_PROVIDER_CATEGORIES = {
   "google-search-console": "seo-tools",
   similarweb: "seo-tools",
   gitlab: "source-control",
+  bitbucket: "source-control",
   braze: "customer-engagement",
   "customer-io": "customer-engagement",
   intercom: "customer-engagement",

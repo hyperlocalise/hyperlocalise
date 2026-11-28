@@ -14,6 +14,7 @@ import type { SimpleIcon } from "simple-icons";
 import {
   siAtlassian,
   siCrowdin,
+  siBitbucket,
   siGithub,
   siGitlab,
   siGoogledrive,
@@ -38,6 +39,7 @@ import type { IntegrationIconKey } from "@/lib/integrations/integration-catalog.
 export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
   github: siGithub,
   gitlab: siGitlab,
+  bitbucket: siBitbucket,
   jira: siJira,
   linear: siLinear,
   notion: siNotion,
@@ -56,6 +58,7 @@ export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
 
 const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   atlassian: siAtlassian,
+  bitbucket: siBitbucket,
   crowdin: siCrowdin,
   gitlab: siGitlab,
   intercom: siIntercom,
