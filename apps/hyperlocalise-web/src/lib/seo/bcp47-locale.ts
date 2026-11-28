@@ -12,7 +12,7 @@
  */
 import type { AppLocale } from "@/lib/app-i18n/locales";
 
-/** Canonical BCP 47 tag for `html lang`, hreflang, and JSON-LD `inLanguage`. */
+/** Canonical BCP 47 tag for `html lang` and JSON-LD `inLanguage`. */
 export function appLocaleToBcp47Tag(locale: AppLocale): string {
   try {
     return Intl.getCanonicalLocales(locale)[0] ?? locale;
@@ -23,4 +23,17 @@ export function appLocaleToBcp47Tag(locale: AppLocale): string {
     }
     return region ? `${language.toLowerCase()}-${region.toUpperCase()}` : language.toLowerCase();
   }
+}
+
+/**
+ * hreflang only accepts ISO 639-1 language codes, so locales with a three-letter
+ * language subtag map to the closest two-letter equivalent.
+ */
+const HREFLANG_TAG_OVERRIDES: Partial<Record<AppLocale, string>> = {
+  "fil-PH": "tl-PH",
+};
+
+/** Tag for hreflang alternates (HTML `<link>` and sitemap). */
+export function appLocaleToHreflangTag(locale: AppLocale): string {
+  return HREFLANG_TAG_OVERRIDES[locale] ?? appLocaleToBcp47Tag(locale);
 }

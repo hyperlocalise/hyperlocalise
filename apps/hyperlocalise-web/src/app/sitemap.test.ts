@@ -13,6 +13,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import { appLocaleToHreflangTag } from "@/lib/seo/bcp47-locale";
 import { SITE_URL } from "@/lib/seo/site-url";
 
 vi.mock("@/lib/localisation-audit/store", () => ({
@@ -28,15 +29,21 @@ describe("sitemap", () => {
 
     expect(homeEn?.alternates?.languages).toEqual({
       ...Object.fromEntries(
-        SUPPORTED_APP_LOCALES.map((locale) => [locale, `${SITE_URL}/${locale}`]),
+        SUPPORTED_APP_LOCALES.map((locale) => [
+          appLocaleToHreflangTag(locale),
+          `${SITE_URL}/${locale}`,
+        ]),
       ),
       "x-default": `${SITE_URL}/en`,
     });
 
     for (const locale of SUPPORTED_APP_LOCALES) {
       const blogIndex = entries.find((entry) => entry.url === `${SITE_URL}/${locale}/blog`);
-      expect(blogIndex?.alternates?.languages?.["x-default"]).toBe(`${SITE_URL}/en/blog`);
-      expect(blogIndex?.alternates?.languages?.[locale]).toBe(`${SITE_URL}/${locale}/blog`);
+      const languages = blogIndex?.alternates?.languages as
+        | Record<string, string | undefined>
+        | undefined;
+      expect(languages?.["x-default"]).toBe(`${SITE_URL}/en/blog`);
+      expect(languages?.[appLocaleToHreflangTag(locale)]).toBe(`${SITE_URL}/${locale}/blog`);
     }
   });
 
