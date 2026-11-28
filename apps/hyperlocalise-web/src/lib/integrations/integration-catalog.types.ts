@@ -32,6 +32,7 @@ export type IntegrationType = "native" | "partner";
 export type IntegrationIconKey =
   | "github"
   | "gitlab"
+  | "bitbucket"
   | "jira"
   | "linear"
   | "notion"

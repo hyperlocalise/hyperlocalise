@@ -16,11 +16,13 @@ import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse, serviceUnavailableResponse } from "@/api/response.schema";
+import { listBitbucketRepositories } from "@/lib/bitbucket/client";
 import { BITBUCKET_PIPES_SLUG } from "@/lib/bitbucket/constants";
 import {
   createBitbucketAuthorizeUrl,
   disconnectBitbucket,
   getBitbucketConnectionStatus,
+  loadBitbucketAccess,
 } from "@/lib/bitbucket/pipes";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -34,52 +36,89 @@ function canManageBitbucket(role: AuthVariables["auth"]["membership"]["role"]) {
  * account. An admin signs in once; project syncs use it with nobody signed in.
  */
 export function createBitbucketRoutes() {
-  return new Hono<{ Variables: AuthVariables }>()
-    .use("*", workosAuthMiddleware)
-    .get("/connection", async (c) => {
-      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-      const result = await getBitbucketConnectionStatus({
-        localOrganizationId: c.var.auth.organization.localOrganizationId,
-        workosOrganizationId: c.var.auth.organization.workosOrganizationId,
-      });
-      if (isErr(result)) {
-        return serviceUnavailableResponse(c, result.error.code, result.error.message);
-      }
-      return c.json({ bitbucketConnection: result.value }, 200);
-    })
-    .get("/connection/authorize-url", async (c) => {
-      if (!canManageBitbucket(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-      const organizationSlug = c.var.auth.organization.slug;
-      const requestUrl = new URL(c.req.url);
-      const result = await createBitbucketAuthorizeUrl({
-        localOrganizationId: c.var.auth.organization.localOrganizationId,
-        workosUserId: c.var.auth.user.workosUserId,
-        ...(organizationSlug
-          ? {
-              returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations?pipesCallback=${BITBUCKET_PIPES_SLUG}`,
-            }
-          : {}),
-      });
-      if (isErr(result)) {
-        return serviceUnavailableResponse(c, result.error.code, result.error.message);
-      }
-      return c.json({ url: result.value.url }, 200);
-    })
-    .delete("/connection", async (c) => {
-      if (!canManageBitbucket(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-      const result = await disconnectBitbucket({
-        localOrganizationId: c.var.auth.organization.localOrganizationId,
-        workosUserId: c.var.auth.user.workosUserId,
-      });
-      if (isErr(result)) {
-        return serviceUnavailableResponse(c, result.error.code, result.error.message);
-      }
-      return c.body(null, 204);
-    });
+  return (
+    new Hono<{ Variables: AuthVariables }>()
+      .use("*", workosAuthMiddleware)
+      .get("/connection", async (c) => {
+        if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const result = await getBitbucketConnectionStatus({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosOrganizationId: c.var.auth.organization.workosOrganizationId,
+        });
+        if (isErr(result)) {
+          return serviceUnavailableResponse(c, result.error.code, result.error.message);
+        }
+        return c.json({ bitbucketConnection: result.value }, 200);
+      })
+      .get("/connection/authorize-url", async (c) => {
+        if (!canManageBitbucket(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const organizationSlug = c.var.auth.organization.slug;
+        const requestUrl = new URL(c.req.url);
+        const result = await createBitbucketAuthorizeUrl({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+          ...(organizationSlug
+            ? {
+                returnTo: `${requestUrl.origin}/org/${organizationSlug}/integrations?pipesCallback=${BITBUCKET_PIPES_SLUG}`,
+              }
+            : {}),
+        });
+        if (isErr(result)) {
+          return serviceUnavailableResponse(c, result.error.code, result.error.message);
+        }
+        return c.json({ url: result.value.url }, 200);
+      })
+      // The repositories the workspace's connection can read, for pickers outside a project
+      // (the visual workflow Content sync step). Empty with `connected: false` when not connected.
+      .get("/repositories", async (c) => {
+        if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const access = await loadBitbucketAccess({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+        });
+        if (isErr(access)) {
+          if (access.error.code === "bitbucket_unavailable") {
+            return serviceUnavailableResponse(c, access.error.code, access.error.message);
+          }
+          return c.json({ connected: false, repositories: [] }, 200);
+        }
+        const repositories = await listBitbucketRepositories(access.value);
+        if (isErr(repositories)) {
+          return serviceUnavailableResponse(
+            c,
+            "bitbucket_unavailable",
+            "Bitbucket couldn't be reached. Try again shortly.",
+          );
+        }
+        return c.json(
+          {
+            connected: true,
+            repositories: repositories.value.map((repository) => ({
+              uuid: repository.uuid,
+              fullName: repository.fullName,
+              mainBranch: repository.mainBranch,
+            })),
+          },
+          200,
+        );
+      })
+      .delete("/connection", async (c) => {
+        if (!canManageBitbucket(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+        const result = await disconnectBitbucket({
+          localOrganizationId: c.var.auth.organization.localOrganizationId,
+          workosUserId: c.var.auth.user.workosUserId,
+        });
+        if (isErr(result)) {
+          return serviceUnavailableResponse(c, result.error.code, result.error.message);
+        }
+        return c.body(null, 204);
+      })
+  );
 }

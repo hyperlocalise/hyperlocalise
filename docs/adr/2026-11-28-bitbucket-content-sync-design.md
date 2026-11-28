@@ -19,7 +19,7 @@ Workspaces on Bitbucket want the same project Sync as GitLab: pull locale files,
 - **Branch rebuilds.** Bitbucket can't move a branch to another commit, and its `src` endpoint commits on an existing branch only when `parents` is that branch's head. A sync branch that doesn't sit on the current target is deleted and made again as one commit on it. Bitbucket may decline the open pull request when its branch is deleted; the run then opens a new one, and the declined one is not the sync's own close, so it never holds a later one back unless its content matches.
 - **No blob ids.** Bitbucket's listings give no git blob ids. To recognise a branch that already holds this run's content (so an hourly sync doesn't rebuild it), delivery reads the files the branch's single commit touches, at most 200, and hashes them (SHA-1, Bitbucket's only object format).
 - **Hidden marks** in pull request descriptions are Markdown reference definitions (`[//]: # (hyperlocalise-sync:…)`), which Bitbucket doesn't render; GitLab's HTML comments would show. Decline takes no message, so the reason and the close mark are written into the description first.
-- **Triggers.** Manual and scheduled runs from the project Sync panel. Bitbucket webhooks, and Bitbucket in the visual workflow Content sync step, are later work.
+- **Where it runs.** The project Sync panel (manual and scheduled runs) and the visual workflow **Content sync** step, which keeps one pull request branch per step like GitLab's. The step's repository picker lists the workspace connection's repositories from `GET /bitbucket/repositories`.
 
 ## Consequences
 

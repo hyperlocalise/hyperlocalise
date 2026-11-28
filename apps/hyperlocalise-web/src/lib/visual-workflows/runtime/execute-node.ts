@@ -442,9 +442,10 @@ export async function executeVisualWorkflowNode(input: {
         workflowId,
         runId: input.visualWorkflowRunId ?? input.idempotencyKey ?? crypto.randomUUID(),
         syncConfig: syncValidation.value,
-        // A GitLab step keeps one merge request of its own; two steps in a workflow must not
-        // rebuild each other's branch. GitHub steps keep their branch per run.
-        ...(syncValidation.value.provider === "gitlab"
+        // A GitLab or Bitbucket step keeps one review of its own; two steps in a workflow must
+        // not rebuild each other's branch. GitHub steps keep their branch per run.
+        ...(syncValidation.value.provider === "gitlab" ||
+        syncValidation.value.provider === "bitbucket"
           ? {
               pullRequestBranchKey: `workflow-${workflowId}-${node.id.replace(/[^A-Za-z0-9_-]/g, "-")}`,
             }

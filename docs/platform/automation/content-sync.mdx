@@ -20,7 +20,7 @@ Only one sync of a project runs at a time. **GitHub** shows in the Sync settings
 
 Admins, localization managers, and developers can change the sync and start it. Other members with access to the project can see its settings and runs. Sync is available on every plan.
 
-Content sync automations created on the project's **Automations** page before the Sync panel keep running. A visual workflow can also run a **Content sync** step, for GitHub or GitLab, when you need more steps around it. A GitHub step sends translations that are already ready back through a pull request; review it before merging.
+Content sync automations created on the project's **Automations** page before the Sync panel keep running. A visual workflow can also run a **Content sync** step, for GitHub, GitLab or Bitbucket, when you need more steps around it. A GitHub step sends translations that are already ready back through a pull request; review it before merging.
 
 ## Pull from GitLab
 
@@ -47,10 +47,10 @@ With **Allow source text editing** on, the same merge request also writes the pr
 A workspace connected to Bitbucket Cloud can pull a repository's source files into a project from the project's **Sync** settings, and send approved translations back as one pull request per sync.
 
 1. An admin [connects Bitbucket](/platform/connections/bitbucket) once for the workspace under **Integrations**, with an account that can write to the repository and open pull requests (an account that can only read pulls files only). Every project sync uses that connection.
-2. Open the project's **Settings**, select **Sync**, choose **Bitbucket** as the repository service and pick the repository.
+2. Open the project's **Settings**, select **Sync**, choose **Bitbucket** as the repository service and pick the repository; or, in a visual workflow, add a **Content sync** step and choose **Bitbucket** as the source.
 3. Fill in the repository folder, the branch (empty reads the repository's main branch), the language file paths and the project folder the same way as [for GitLab](#pull-from-gitlab).
 
-Everything described for GitLab above applies: which files are imported, keys the repository dropped being hidden, and what goes back. Bitbucket calls the review a pull request. The sync's branch is made again on the current target whenever what it carries changes; if Bitbucket declines the open pull request when that happens, the run opens a new one. A pull request you decline stays declined until the translations to send change. Visual workflow **Content sync** steps don't offer Bitbucket yet.
+Everything described for GitLab above applies: which files are imported, keys the repository dropped being hidden, and what goes back. Bitbucket calls the review a pull request. The sync's branch is made again on the current target whenever what it carries changes; if Bitbucket declines the open pull request when that happens, the run opens a new one. A pull request you decline stays declined until the translations to send change.
 ## Connect the translation step
 
 Content sync itself does not create translation jobs. Add a [Source upload automation](/platform/automation/create-automation) or [request a translation](/platform/translation/start) after the source arrives. Review the translations before the next outbound sync.

@@ -1095,6 +1095,10 @@
     "defaultMessage": "Context request",
     "description": "Unresolved issue submenu: context request"
   },
+  "/NAL9lHNAV": {
+    "defaultMessage": "Connect Bitbucket in Integrations to choose a repository.",
+    "description": "Hint under the content sync repository picker when the workspace hasn't connected Bitbucket"
+  },
   "/O//bHFSie": {
     "defaultMessage": "Plain",
     "description": "Filter option for plain source strings"

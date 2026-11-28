@@ -88,6 +88,32 @@ export const integrationFaqCopy = {
       "GitLab integration FAQ answer about TMS",
     ),
   ],
+  bitbucket: [
+    faq(
+      "Which Bitbucket does this work with?",
+      "intBitbucketFaqQ1",
+      "Bitbucket integration FAQ about which Bitbucket is supported",
+      "Bitbucket Cloud. An admin connects it once for the whole workspace, and every project sync uses that connection.",
+      "intBitbucketFaqA1",
+      "Bitbucket integration FAQ answer about which Bitbucket is supported",
+    ),
+    faq(
+      "How do translations get back into the repository?",
+      "intBitbucketFaqQ2",
+      "Bitbucket integration FAQ about delivery",
+      "Each sync sends approved translations as one pull request from its own branch. Only text that changed goes, and your reviewers merge it as usual.",
+      "intBitbucketFaqA2",
+      "Bitbucket integration FAQ answer about delivery",
+    ),
+    faq(
+      "What can the sync reach?",
+      "intBitbucketFaqQ3",
+      "Bitbucket integration FAQ about access",
+      "The repositories the connected Bitbucket account can see. Connect with an account that belongs only to the repositories you want to sync.",
+      "intBitbucketFaqA3",
+      "Bitbucket integration FAQ answer about access",
+    ),
+  ],
   slack: [
     faq(
       "Where do review requests land in Slack?",

@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   getBitbucketConnectionStatus: vi.fn(),
   createBitbucketAuthorizeUrl: vi.fn(),
   disconnectBitbucket: vi.fn(),
+  loadBitbucketAccess: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -39,12 +40,13 @@ vi.mock("@/lib/bitbucket/pipes", () => ({
   getBitbucketConnectionStatus: mocks.getBitbucketConnectionStatus,
   createBitbucketAuthorizeUrl: mocks.createBitbucketAuthorizeUrl,
   disconnectBitbucket: mocks.disconnectBitbucket,
+  loadBitbucketAccess: mocks.loadBitbucketAccess,
 }));
 
 import { createApp } from "@/api/app";
 import type { AppType } from "@/api/typed-app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 const client = testClient<AppType>(createApp());
 const fixture = createAuthTestFixture();
@@ -134,5 +136,56 @@ describe("bitbucketRoutes", () => {
 
     expect(response.status).toBe(204);
     expect(mocks.disconnectBitbucket).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the connected account's repositories for workflow pickers", async () => {
+    mocks.loadBitbucketAccess.mockResolvedValue(ok({ accessToken: "bb-token" }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              values: [
+                {
+                  uuid: "{r1}",
+                  full_name: "acme/site",
+                  name: "site",
+                  mainbranch: { name: "main" },
+                },
+              ],
+            }),
+          ),
+      ),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].bitbucket.repositories.$get(
+      { param: { organizationSlug: identity.organization.slug ?? "" } },
+      { headers },
+    );
+    vi.unstubAllGlobals();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      connected: true,
+      repositories: [{ uuid: "{r1}", fullName: "acme/site", mainBranch: "main" }],
+    });
+  });
+
+  it("answers not connected with no repositories when Bitbucket isn't connected", async () => {
+    mocks.loadBitbucketAccess.mockResolvedValue(
+      err({ code: "bitbucket_not_connected", message: "Connect Bitbucket" }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].bitbucket.repositories.$get(
+      { param: { organizationSlug: identity.organization.slug ?? "" } },
+      { headers },
+    );
+
+    expect(await response.json()).toEqual({ connected: false, repositories: [] });
   });
 });

@@ -15,7 +15,7 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/core";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -435,6 +435,78 @@ describe("VisualWorkflowConfigPanel", () => {
 
     await user.type(paths, "x");
     expect(onChangeConfig.mock.calls.at(-1)?.[0].pathTemplate).toBe("x");
+  });
+
+  it("offers Bitbucket as a content sync source with its language file path fields", async () => {
+    const user = userEvent.setup();
+    const onChangeConfig = vi.fn();
+    resourceOptionsMock.resourceOptionsFor.mockImplementation((provider?: string) =>
+      provider === "bitbucket"
+        ? [{ id: "{r1}", label: "acme/site", resourceKey: "acme/site" }]
+        : [{ id: "repo-1", label: "acme/web", resourceKey: "acme/web" }],
+    );
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={triggerNode("action.content_sync")}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Source" }));
+    await user.click(await screen.findByRole("option", { name: "Bitbucket" }));
+    // Another source lists other repositories, so the chosen one is cleared.
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      provider: "bitbucket",
+      connectionId: "",
+      resourceKey: "",
+    });
+
+    const base = triggerNode("action.content_sync");
+    const bitbucketNode = {
+      ...base,
+      data: {
+        ...base.data,
+        config: {
+          ...(base.data.config as Extract<
+            VisualWorkflowRfNode["data"]["config"],
+            { kind: "action.content_sync" }
+          >),
+          provider: "bitbucket" as const,
+          connectionId: "",
+          resourceKey: "",
+          projectFolder: "",
+        },
+      },
+    };
+    cleanup();
+    renderPanel(
+      <VisualWorkflowConfigPanel
+        node={bitbucketNode}
+        organizationSlug="acme"
+        issues={[]}
+        onBack={vi.fn()}
+        onChangeConfig={onChangeConfig}
+        onChangeNodeType={vi.fn()}
+        onDeleteNode={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Language file paths")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Resource" }));
+    await user.click(await screen.findByRole("option", { name: "acme/site" }));
+    expect(onChangeConfig.mock.calls.at(-1)?.[0]).toMatchObject({
+      provider: "bitbucket",
+      connectionId: "{r1}",
+      resourceKey: "acme/site",
+      projectFolder: "bitbucket/acme/site",
+    });
+    resourceOptionsMock.resourceOptionsFor.mockImplementation(() => [
+      { id: "repo-1", label: "acme/web", resourceKey: "acme/web" },
+    ]);
   });
 
   it("configures a Wait node and changes its mode", async () => {

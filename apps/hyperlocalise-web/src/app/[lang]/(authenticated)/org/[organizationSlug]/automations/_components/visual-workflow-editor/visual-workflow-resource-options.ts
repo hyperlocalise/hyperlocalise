@@ -58,6 +58,11 @@ export type VisualWorkflowGitLabProjectOption = {
   pathWithNamespace: string;
 };
 
+export type VisualWorkflowBitbucketRepositoryOption = {
+  uuid: string;
+  fullName: string;
+};
+
 export type VisualWorkflowResourceOption = {
   id: string;
   label: string;
@@ -182,6 +187,27 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     },
   });
 
+  // Runs use the workspace's one shared Bitbucket connection.
+  const bitbucketQuery = useQuery({
+    queryKey: ["bitbucket", organizationSlug, "repositories"],
+    enabled,
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"].bitbucket.repositories.$get({
+        param: { organizationSlug: organizationSlug! },
+      });
+      if (!response.ok) {
+        return { connected: true, repositories: [] as VisualWorkflowBitbucketRepositoryOption[] };
+      }
+      const body = await response.json();
+      return {
+        connected: "connected" in body ? body.connected : false,
+        repositories: ("repositories" in body
+          ? body.repositories
+          : []) as VisualWorkflowBitbucketRepositoryOption[],
+      };
+    },
+  });
+
   const workflowsQuery = useQuery({
     queryKey: ["visual-workflows", organizationSlug, "call-options"],
     enabled,
@@ -196,6 +222,7 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
   // A cached list from a removed server would otherwise linger.
   const gitlabProjects = gitlabServerUrl !== null ? (gitlabQuery.data ?? []) : [];
   const projects = projectsQuery.data ?? [];
+  const bitbucketRepositories = bitbucketQuery.data?.repositories ?? [];
 
   return {
     projects,
@@ -209,6 +236,8 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
     ),
     githubConnected,
     gitlabConnected: gitlabServerUrl !== null,
+    // Unknown while loading, so the hint only shows once the answer is no.
+    bitbucketConnected: bitbucketQuery.data?.connected ?? true,
     resourceOptionsFor(provider: ContentSyncProvider): VisualWorkflowResourceOption[] {
       if (provider === "github") {
         return repositories.map((repository) => ({
@@ -222,6 +251,14 @@ export function useVisualWorkflowResourceOptions(organizationSlug?: string) {
           id: connection.id,
           label: connection.displayName || connection.spaceId,
           resourceKey: connection.spaceId,
+        }));
+      }
+      if (provider === "bitbucket") {
+        // The uuid proves at run time that the path still names the chosen repository.
+        return bitbucketRepositories.map((repository) => ({
+          id: repository.uuid,
+          label: repository.fullName,
+          resourceKey: repository.fullName,
         }));
       }
       if (provider === "gitlab") {

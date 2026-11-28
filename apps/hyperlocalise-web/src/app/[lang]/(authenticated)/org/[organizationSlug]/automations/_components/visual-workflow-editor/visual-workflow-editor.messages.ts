@@ -2561,6 +2561,12 @@ export const visualWorkflowEditorMessages = defineMessages({
     description:
       "Hint under the GitLab project picker of the Content sync step when the workspace has no GitLab connection",
   },
+  contentSyncBitbucketNotConnected: {
+    defaultMessage: "Connect Bitbucket in Integrations to choose a repository.",
+    id: "/NAL9lHNAV",
+    description:
+      "Hint under the content sync repository picker when the workspace hasn't connected Bitbucket",
+  },
   contentSyncBranch: {
     defaultMessage: "Branch",
     id: "48BU/b+yFc",
