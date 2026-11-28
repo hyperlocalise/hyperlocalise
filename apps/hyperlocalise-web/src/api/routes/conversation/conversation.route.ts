@@ -31,20 +31,27 @@ import {
   toStoredTranslationFileRef,
 } from "@/lib/conversations/stored-file-context";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import type { RepositoryAgentBitbucketContext } from "@/lib/agent-contracts/bitbucket-repository-task";
 import type { RepositoryAgentGitLabContext } from "@/lib/agent-contracts/gitlab-repository-task";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
+  getBitbucketRepositoryContextKey,
   getGitlabRepositoryContextKey,
   getRepositoryContextKey,
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
 } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
+import { resolveBitbucketRepositoryContext } from "@/lib/bitbucket/repository-context";
 import { resolveGitLabProjectContext } from "@/lib/gitlab/repository-context";
 import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
-import { conversationIdParamsSchema, createConversationRequestSchema } from "./conversation.schema";
+import {
+  conversationIdParamsSchema,
+  createConversationRequestSchema,
+  type RepositoryProvider,
+} from "./conversation.schema";
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
@@ -169,12 +176,15 @@ async function seedConversationRepositorySession(input: {
   organizationId: string;
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
   repositoryGitLabContext?: RepositoryAgentGitLabContext;
+  repositoryBitbucketContext?: RepositoryAgentBitbucketContext;
 }) {
   const repositoryContextKey = input.repositoryGitHubContext
     ? getRepositoryContextKey(input.repositoryGitHubContext)
     : input.repositoryGitLabContext
       ? getGitlabRepositoryContextKey(input.repositoryGitLabContext)
-      : null;
+      : input.repositoryBitbucketContext
+        ? getBitbucketRepositoryContextKey(input.repositoryBitbucketContext)
+        : null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const current = await getWebConversationRepositorySession(input.conversationId);
@@ -191,6 +201,7 @@ async function seedConversationRepositorySession(input: {
         ...current?.session,
         repositoryGitHubContext: input.repositoryGitHubContext,
         repositoryGitLabContext: input.repositoryGitLabContext,
+        repositoryBitbucketContext: input.repositoryBitbucketContext,
         ...(repositorySandboxSession ? { repositorySandboxSession } : {}),
       },
     });
@@ -219,22 +230,36 @@ async function resolveSelectedRepositoryGitHubContext(input: {
   return resolution.status === "resolved" ? resolution.context : null;
 }
 
+type SelectedRepositoryUnavailableError =
+  | "github_repository_not_available"
+  | "gitlab_project_not_available"
+  | "bitbucket_repository_not_available";
+
 async function resolveSelectedChatRepositoryContext(input: {
   organizationId: string;
   workosUserId: string;
   repositoryFullName?: string;
-  repositoryProvider?: "github" | "gitlab";
+  repositoryProvider?: RepositoryProvider;
 }): Promise<
   | { status: "none" }
   | { status: "github"; context: RepositoryAgentGitHubContext }
   | { status: "gitlab"; context: RepositoryAgentGitLabContext }
-  | {
-      status: "unavailable";
-      error: "github_repository_not_available" | "gitlab_project_not_available";
-    }
+  | { status: "bitbucket"; context: RepositoryAgentBitbucketContext }
+  | { status: "unavailable"; error: SelectedRepositoryUnavailableError }
 > {
   if (!input.repositoryFullName) {
     return { status: "none" };
+  }
+
+  // Bitbucket is chosen by name only: an unnamed provider means GitHub or GitLab, as before.
+  if (input.repositoryProvider === "bitbucket") {
+    const bitbucketContext = await resolveBitbucketRepositoryContext({
+      localOrganizationId: input.organizationId,
+      repositoryFullName: input.repositoryFullName,
+    });
+    return bitbucketContext
+      ? { status: "bitbucket", context: bitbucketContext }
+      : { status: "unavailable", error: "bitbucket_repository_not_available" };
   }
 
   if (input.repositoryProvider !== "gitlab") {
@@ -270,8 +295,15 @@ async function resolveSelectedChatRepositoryContext(input: {
 
 function selectedRepositoryUnavailableResponse(
   c: Parameters<typeof badRequestResponse>[0],
-  error: "github_repository_not_available" | "gitlab_project_not_available",
+  error: SelectedRepositoryUnavailableError,
 ) {
+  if (error === "bitbucket_repository_not_available") {
+    return badRequestResponse(
+      c,
+      "bitbucket_repository_not_available",
+      "Selected Bitbucket repository is not available with the workspace's Bitbucket connection.",
+    );
+  }
   if (error === "gitlab_project_not_available") {
     return badRequestResponse(
       c,
@@ -429,6 +461,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             conversationId: createdConversation.id,
             organizationId: orgId,
             repositoryGitLabContext: selectedRepository.context,
+          });
+        } else if (selectedRepository.status === "bitbucket") {
+          await seedConversationRepositorySession({
+            conversationId: createdConversation.id,
+            organizationId: orgId,
+            repositoryBitbucketContext: selectedRepository.context,
           });
         }
 
@@ -609,6 +647,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             conversationId,
             organizationId: orgId,
             repositoryGitLabContext: selectedRepository.context,
+          });
+        } else if (selectedRepository.status === "bitbucket") {
+          await seedConversationRepositorySession({
+            conversationId,
+            organizationId: orgId,
+            repositoryBitbucketContext: selectedRepository.context,
           });
         }
 

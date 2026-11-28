@@ -105,6 +105,28 @@ export async function loadBitbucketAccess(input: {
   return ok({ accessToken: token.value });
 }
 
+/**
+ * Who a Bitbucket clone's credentials belong to: the admin who connected Bitbucket. A repository
+ * sandbox made under one connection is not reused under another. Null when it can't be used.
+ */
+export async function resolveBitbucketCredentialOwner(input: {
+  localOrganizationId: string;
+}): Promise<string | null> {
+  const account = await getPipesOrganizationAccount({
+    provider: BITBUCKET_PIPES_SLUG,
+    localOrganizationId: input.localOrganizationId,
+  });
+  if (isErr(account)) {
+    return null;
+  }
+  const { connected, needsReauthorization, establisherLeft, establishedByWorkosUserId } =
+    account.value;
+  if (!connected || needsReauthorization || establisherLeft || !establishedByWorkosUserId) {
+    return null;
+  }
+  return `bitbucket-connection:${establishedByWorkosUserId}`;
+}
+
 /** Where an admin signs in to connect Bitbucket for the whole workspace. */
 export async function createBitbucketAuthorizeUrl(input: {
   localOrganizationId: string;

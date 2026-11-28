@@ -19,7 +19,7 @@ import { IntlProvider } from "react-intl";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ChatRepository } from "./chat-repository";
-import { chatRepositorySelectionKey } from "./chat-repository";
+import { chatRepositorySelectionKey, parseChatRepositorySelectionKey } from "./chat-repository";
 import { RepositorySelector } from "./repository-selector";
 
 function renderWithIntl(ui: ReactElement) {
@@ -72,5 +72,44 @@ describe("RepositorySelector", () => {
     await user.click(await screen.findByText("acme/platform/docs"));
 
     expect(onSelectRepository).toHaveBeenCalledWith(gitlabRepository);
+  });
+
+  it("lists a Bitbucket repository next to the others and selects it", async () => {
+    const user = userEvent.setup();
+    const onSelectRepository = vi.fn();
+    const bitbucketRepository = createRepository({
+      provider: "bitbucket",
+      name: "mobile",
+      fullName: "acme/mobile",
+    });
+
+    renderWithIntl(
+      <RepositorySelector
+        repositories={[
+          createRepository({ name: "web", fullName: "acme/web" }),
+          bitbucketRepository,
+        ]}
+        repositoriesIsError={false}
+        repositoriesIsLoading={false}
+        selectedRepositoryKey=""
+        onSelectRepository={onSelectRepository}
+        triggerStyle="button"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /repository/i }));
+    await user.click(await screen.findByText("acme/mobile"));
+
+    expect(onSelectRepository).toHaveBeenCalledWith(bitbucketRepository);
+  });
+});
+
+describe("parseChatRepositorySelectionKey", () => {
+  it("reads a Bitbucket selection key back", () => {
+    expect(parseChatRepositorySelectionKey("bitbucket:acme/web")).toEqual({
+      provider: "bitbucket",
+      fullName: "acme/web",
+    });
+    expect(parseChatRepositorySelectionKey("bitbucket:")).toBeNull();
   });
 });

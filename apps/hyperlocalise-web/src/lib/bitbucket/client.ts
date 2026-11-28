@@ -16,12 +16,18 @@ import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 import {
   BITBUCKET_API_ORIGIN,
+  BITBUCKET_GIT_ORIGIN,
   BITBUCKET_REPOSITORY_MAX_PAGES,
   BITBUCKET_REPOSITORY_PAGE_SIZE,
   BITBUCKET_REQUEST_TIMEOUT_MS,
   BITBUCKET_WRITE_REQUEST_TIMEOUT_MS,
 } from "./constants";
-import type { BitbucketAccess, BitbucketApiError, BitbucketRepository } from "./types";
+import type {
+  BitbucketAccess,
+  BitbucketApiError,
+  BitbucketPullRequest,
+  BitbucketRepository,
+} from "./types";
 
 const logger = createLogger("bitbucket-client");
 
@@ -279,4 +285,43 @@ export async function getBitbucketRepository(
   }
   const repository = parseRepository(result.value);
   return repository ? ok(repository) : err(requestFailed(200));
+}
+
+/** The clone URL of one repository, on the fixed Bitbucket host. Credentials go separately. */
+export function buildBitbucketCloneUrl(fullName: string): string {
+  const [workspace = "", slug = ""] = fullName.split("/");
+  return `${BITBUCKET_GIT_ORIGIN}/${encodeURIComponent(workspace)}/${encodeURIComponent(slug)}.git`;
+}
+
+export async function getBitbucketPullRequest(
+  input: BitbucketAccess & { fullName: string; pullRequestId: number; signal?: AbortSignal },
+): Promise<Result<BitbucketPullRequest, BitbucketApiError>> {
+  if (
+    !isBitbucketRepositoryFullName(input.fullName) ||
+    !Number.isSafeInteger(input.pullRequestId)
+  ) {
+    return err(NOT_FOUND);
+  }
+  const result = await bitbucketJson({
+    ...input,
+    path: `${bitbucketRepositoryPath(input.fullName)}/pullrequests/${input.pullRequestId}`,
+    query: new URLSearchParams({
+      fields: "id,source.branch.name,source.repository.full_name,destination.branch.name",
+    }),
+  });
+  if (isErr(result)) {
+    return result;
+  }
+  const record = asRecord(result.value);
+  const source = asRecord(record?.source);
+  const destination = asRecord(record?.destination);
+  if (!record || typeof record.id !== "number") {
+    return err(requestFailed(200));
+  }
+  return ok({
+    id: record.id,
+    sourceBranch: asString(asRecord(source?.branch)?.name),
+    sourceRepositoryFullName: asString(asRecord(source?.repository)?.full_name),
+    destinationBranch: asString(asRecord(destination?.branch)?.name),
+  });
 }

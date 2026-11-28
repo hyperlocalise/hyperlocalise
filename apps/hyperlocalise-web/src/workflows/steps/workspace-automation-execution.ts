@@ -166,7 +166,7 @@ export async function startRepositoryAgentStep(
 
 export async function executeRepositoryAgentToolStep(input: {
   event: WorkspaceAutomationExecutionEventData;
-  start: Pick<RepositoryAgentStart, "sandboxId" | "gitlabContext">;
+  start: Pick<RepositoryAgentStart, "sandboxId" | "gitlabContext" | "bitbucketContext">;
   toolName: string;
   toolCallId: string;
   toolInput: unknown;

@@ -13639,6 +13639,10 @@
     "defaultMessage": "translation",
     "description": "Job kind label for translation jobs"
   },
+  "Fl6k6C/K/M": {
+    "defaultMessage": "Automation Bitbucket steps",
+    "description": "AI feature: an automation's Bitbucket step"
+  },
   "FlKUTB/6A0": {
     "defaultMessage": "Unassigned",
     "description": "Label when a native job has no owner"

@@ -22,6 +22,7 @@ import {
   completeAgentRuntimeUsage,
   extractAiSdkTokenUsage,
 } from "@/lib/billing/agent-runtime-usage";
+import { stopBitbucketRepositorySandbox } from "@/lib/bitbucket/bitbucket-repository-sandbox";
 import { stopGitlabRepositorySandbox } from "@/lib/gitlab/gitlab-repository-sandbox";
 import { createLogger } from "@/lib/log";
 
@@ -48,6 +49,7 @@ import {
   startRunGithubWorkflows,
 } from "./tools/run_github_workflows";
 import { startGithubRepositoryAgent } from "./tools/use_github_repository";
+import { startBitbucketRepositoryAgent } from "./tools/use_bitbucket_repository";
 import { startGitlabRepositoryAgent } from "./tools/use_gitlab_repository";
 
 const logger = createLogger("workspace-orchestrator-durable-tools");
@@ -97,7 +99,9 @@ async function stopRepositoryAgentSandbox(toolName: RepositoryAgentToolName, san
   const stop =
     toolName === "use_gitlab_repository"
       ? stopGitlabRepositorySandbox
-      : stopGithubRepositoryAutomationSandbox;
+      : toolName === "use_bitbucket_repository"
+        ? stopBitbucketRepositorySandbox
+        : stopGithubRepositoryAutomationSandbox;
   await stop(sandboxId).catch((error: unknown) => {
     logger.warn({ sandboxId, message: errorMessage(error, "stop_failed") }, "sandbox stop failed");
   });
@@ -127,7 +131,9 @@ export async function startDurableRepositoryAgent(
     start =
       input.toolName === "use_gitlab_repository"
         ? await startGitlabRepositoryAgent(session, options)
-        : await startGithubRepositoryAgent(session, options);
+        : input.toolName === "use_bitbucket_repository"
+          ? await startBitbucketRepositoryAgent(session, options)
+          : await startGithubRepositoryAgent(session, options);
 
     await beginAgentRuntimeUsage({
       organizationId: input.organizationId,
@@ -142,6 +148,7 @@ export async function startDurableRepositoryAgent(
         organizationId: input.organizationId,
         sandboxId: start.sandboxId,
         gitlabContext: start.gitlabContext,
+        bitbucketContext: start.bitbucketContext,
       }),
     );
     const toolSpecs = await Promise.all(
@@ -167,7 +174,7 @@ export async function startDurableRepositoryAgent(
 export async function executeDurableRepositoryAgentTool(input: {
   workspaceAutomationRunId: string;
   organizationId: string;
-  start: Pick<RepositoryAgentStart, "sandboxId" | "gitlabContext">;
+  start: Pick<RepositoryAgentStart, "sandboxId" | "gitlabContext" | "bitbucketContext">;
   toolName: string;
   toolCallId: string;
   toolInput: unknown;
@@ -187,6 +194,7 @@ export async function executeDurableRepositoryAgentTool(input: {
     organizationId: input.organizationId,
     sandboxId: input.start.sandboxId,
     gitlabContext: input.start.gitlabContext,
+    bitbucketContext: input.start.bitbucketContext,
     todos: input.todos,
   });
   const readTodos = () => toolContext.agentSession?.todos ?? input.todos;

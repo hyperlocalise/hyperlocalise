@@ -33,6 +33,14 @@ export type BitbucketRepository = {
   mainBranch: string | null;
 };
 
+export type BitbucketPullRequest = {
+  id: number;
+  sourceBranch: string | null;
+  /** `workspace/repo-slug` of the branch's repository; another one for a pull request from a fork. */
+  sourceRepositoryFullName: string | null;
+  destinationBranch: string | null;
+};
+
 /** The workspace's shared Bitbucket connection, as Integrations shows it. */
 export type BitbucketConnectionStatus = {
   connected: boolean;

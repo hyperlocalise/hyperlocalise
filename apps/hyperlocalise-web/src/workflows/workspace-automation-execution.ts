@@ -110,7 +110,11 @@ async function runRepositoryAgentTool(
       execute: async (toolInput: unknown, { toolCallId }) => {
         const outcome = await executeRepositoryAgentToolStep({
           event: input.event,
-          start: { sandboxId: start.sandboxId, gitlabContext: start.gitlabContext },
+          start: {
+            sandboxId: start.sandboxId,
+            gitlabContext: start.gitlabContext,
+            ...(start.bitbucketContext ? { bitbucketContext: start.bitbucketContext } : {}),
+          },
           toolName: spec.name,
           toolCallId,
           toolInput,

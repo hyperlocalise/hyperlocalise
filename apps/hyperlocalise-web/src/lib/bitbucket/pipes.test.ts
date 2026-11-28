@@ -23,7 +23,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/pipes/accounts", () => mocks);
 
-import { createBitbucketAuthorizeUrl, disconnectBitbucket, loadBitbucketAccess } from "./pipes";
+import {
+  createBitbucketAuthorizeUrl,
+  disconnectBitbucket,
+  loadBitbucketAccess,
+  resolveBitbucketCredentialOwner,
+} from "./pipes";
 
 function account(overrides: Record<string, unknown> = {}) {
   return ok({
@@ -121,5 +126,31 @@ describe("Bitbucket through WorkOS Pipes", () => {
     );
     // Already gone counts as done.
     expect(isOk(removed)).toBe(true);
+  });
+
+  it("names the admin who connected Bitbucket as the owner of a clone's credentials", async () => {
+    mocks.getPipesOrganizationAccount.mockResolvedValue(account());
+    await expect(resolveBitbucketCredentialOwner({ localOrganizationId: "org_1" })).resolves.toBe(
+      "bitbucket-connection:user_admin",
+    );
+
+    mocks.getPipesOrganizationAccount.mockResolvedValue(account({ needsReauthorization: true }));
+    await expect(
+      resolveBitbucketCredentialOwner({ localOrganizationId: "org_1" }),
+    ).resolves.toBeNull();
+
+    mocks.getPipesOrganizationAccount.mockResolvedValue(
+      account({ connected: false, establishedByWorkosUserId: null }),
+    );
+    await expect(
+      resolveBitbucketCredentialOwner({ localOrganizationId: "org_1" }),
+    ).resolves.toBeNull();
+
+    mocks.getPipesOrganizationAccount.mockResolvedValue(
+      err({ code: "pipes_unavailable", message: "down" }),
+    );
+    await expect(
+      resolveBitbucketCredentialOwner({ localOrganizationId: "org_1" }),
+    ).resolves.toBeNull();
   });
 });

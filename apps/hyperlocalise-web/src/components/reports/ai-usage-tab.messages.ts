@@ -508,6 +508,11 @@ export const aiUsageTabMessages = defineMessages({
     defaultMessage: "Automation GitLab steps",
     description: "AI feature: an automation's GitLab step",
   },
+  feature_workspace_bitbucket_repository_agent: {
+    id: "Fl6k6C/K/M",
+    defaultMessage: "Automation Bitbucket steps",
+    description: "AI feature: an automation's Bitbucket step",
+  },
   feature_workspace_crowdin_agent: {
     id: "Qy4JOmQ7Ba",
     defaultMessage: "Automation Crowdin steps",

@@ -26,3 +26,9 @@ export const BITBUCKET_WRITE_REQUEST_TIMEOUT_MS = 60_000;
 
 /** WorkOS Pipes slug for Bitbucket. The workspace shares one organization-owned connection. */
 export const BITBUCKET_PIPES_SLUG = "bitbucket" satisfies PipesProviderSlug;
+
+/** Bitbucket Cloud's git host. Clones go here, never to a link Bitbucket or a person gave. */
+export const BITBUCKET_GIT_ORIGIN = "https://bitbucket.org";
+
+/** The git username Bitbucket expects with a bearer token in place of a password. */
+export const BITBUCKET_GIT_TOKEN_USERNAME = "x-token-auth";

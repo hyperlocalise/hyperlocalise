@@ -21,6 +21,9 @@ function stubInboxApiClient() {
   const sendMessagePost = vi.fn();
   const listGithubRepositoriesGet = vi.fn();
   const listGitlabProjectsGet = vi.fn();
+  const listBitbucketRepositoriesGet = vi.fn(async () =>
+    jsonResponse({ connected: false, repositories: [] }, 200),
+  );
   const listConversations = vi.fn();
   const listMessages = vi.fn();
   const listJobs = vi.fn();
@@ -29,6 +32,7 @@ function stubInboxApiClient() {
     sendMessagePost,
     listGithubRepositoriesGet,
     listGitlabProjectsGet,
+    listBitbucketRepositoriesGet,
     listConversations,
     listMessages,
     listJobs,
@@ -52,6 +56,9 @@ function stubInboxApiClient() {
             },
             gitlab: {
               projects: { $get: listGitlabProjectsGet },
+            },
+            bitbucket: {
+              repositories: { $get: listBitbucketRepositoriesGet },
             },
           },
         },
@@ -213,6 +220,89 @@ describe("createInboxApi FormData", () => {
         selectionKey: "gitlab:acme/platform/docs",
       },
     ]);
+  });
+});
+
+describe("createInboxApi Bitbucket repositories", () => {
+  it("adds the workspace's Bitbucket repositories to the chat repository options", async () => {
+    const {
+      client,
+      listGithubRepositoriesGet,
+      listGitlabProjectsGet,
+      listBitbucketRepositoriesGet,
+    } = stubInboxApiClient();
+    listGithubRepositoriesGet.mockResolvedValue(jsonResponse({ error: "forbidden" }, 403));
+    listGitlabProjectsGet.mockResolvedValue(jsonResponse({ projects: [] }, 200));
+    listBitbucketRepositoriesGet.mockResolvedValue(
+      jsonResponse(
+        {
+          connected: true,
+          repositories: [{ uuid: "{repo-uuid}", fullName: "acme/web", mainBranch: "main" }],
+        },
+        200,
+      ),
+    );
+
+    const api = createInboxApi(client);
+    await expect(api.listChatRepositories("acme")).resolves.toEqual([
+      {
+        archived: false,
+        defaultBranch: "main",
+        enabled: true,
+        fullName: "acme/web",
+        name: "web",
+        provider: "bitbucket",
+        selectionKey: "bitbucket:acme/web",
+      },
+    ]);
+  });
+
+  it("still fails when no provider answers", async () => {
+    const {
+      client,
+      listGithubRepositoriesGet,
+      listGitlabProjectsGet,
+      listBitbucketRepositoriesGet,
+    } = stubInboxApiClient();
+    listGithubRepositoriesGet.mockResolvedValue(jsonResponse({ error: "unavailable" }, 503));
+    listGitlabProjectsGet.mockResolvedValue(jsonResponse({ error: "unavailable" }, 503));
+    listBitbucketRepositoriesGet.mockResolvedValue(
+      jsonResponse({ error: "bitbucket_unavailable" }, 503),
+    );
+
+    await expect(createInboxApi(client).listChatRepositories("acme")).rejects.toThrow();
+  });
+
+  it("sends the Bitbucket provider with a selected repository", async () => {
+    const { client, createConversationPost } = stubInboxApiClient();
+    createConversationPost.mockResolvedValue(
+      jsonResponse(
+        {
+          conversation: { id: "conv_1" },
+          message: { id: "msg_1" },
+          files: [],
+        },
+        201,
+      ),
+    );
+
+    await createInboxApi(client)
+      .createConversation("acme", {
+        text: "Where is Checkout?",
+        repositoryFullName: "acme/web",
+        repositoryProvider: "bitbucket",
+        files: [],
+      })
+      .catch(() => undefined);
+
+    expect(createConversationPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        form: expect.objectContaining({
+          repositoryFullName: "acme/web",
+          repositoryProvider: "bitbucket",
+        }),
+      }),
+    );
   });
 });
 

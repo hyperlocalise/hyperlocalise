@@ -180,7 +180,7 @@ describe("conversation classifier", () => {
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining(
-          "they usually mean context in the connected GitHub or GitLab repository",
+          "they usually mean context in the connected GitHub, GitLab, or Bitbucket repository",
         ),
       }),
     );

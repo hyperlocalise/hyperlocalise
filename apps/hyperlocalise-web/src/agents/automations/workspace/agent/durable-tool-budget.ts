@@ -25,7 +25,11 @@ import type { RepositoryAgentToolName } from "./repository-agent";
 export const WORKSPACE_AUTOMATION_RUN_CANCELLED = "workspace_automation_run_cancelled";
 
 export function isRepositoryAgentToolName(name: string): name is RepositoryAgentToolName {
-  return name === "use_github_repository" || name === "use_gitlab_repository";
+  return (
+    name === "use_github_repository" ||
+    name === "use_gitlab_repository" ||
+    name === "use_bitbucket_repository"
+  );
 }
 
 /**

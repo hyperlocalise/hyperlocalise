@@ -15,7 +15,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { siGithub, siGitlab } from "simple-icons";
+import { siBitbucket, siGithub, siGitlab } from "simple-icons";
 
 import { PromptInputButton } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,12 @@ function RepositorySelectorTrigger({
   );
 }
 
+const PROVIDER_ICONS = {
+  github: siGithub,
+  gitlab: siGitlab,
+  bitbucket: siBitbucket,
+} satisfies Record<ChatRepositoryProvider, typeof siGithub>;
+
 function ProviderIcon({
   provider,
   className,
@@ -80,13 +86,7 @@ function ProviderIcon({
   provider: ChatRepositoryProvider;
   className?: string;
 }) {
-  return (
-    <SimpleBrandIcon
-      icon={provider === "gitlab" ? siGitlab : siGithub}
-      colored
-      className={className}
-    />
-  );
+  return <SimpleBrandIcon icon={PROVIDER_ICONS[provider]} colored className={className} />;
 }
 
 export function RepositorySelector({

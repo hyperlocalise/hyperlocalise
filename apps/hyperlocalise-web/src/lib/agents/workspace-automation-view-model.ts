@@ -81,10 +81,13 @@ export type WorkspaceAutomationFormState = {
   scheduledHourUtc: number;
   scheduledDayOfWeek: number;
   scheduledTimezone: string;
-  repositoryTargetKind: "none" | "github" | "gitlab";
+  repositoryTargetKind: "none" | "github" | "gitlab" | "bitbucket";
   githubInstallationRepositoryId: string;
   gitlabEnabled: boolean;
   gitlabPathWithNamespace: string;
+  /** Kept as saved so editing an automation doesn't drop it; the form has no Bitbucket picker yet. */
+  bitbucketEnabled: boolean;
+  bitbucketRepositoryFullName: string;
   githubEnabled: boolean;
   githubMode: WorkspaceAutomationGithubToolMode;
   pushSourceEnabled: boolean;
@@ -319,6 +322,13 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   gitlab_not_connected: "Connect GitLab in Integrations before using it.",
   gitlab_pipes_needs_reauthorization: "Reconnect GitLab in Integrations, then try again.",
   gitlab_pipes_unavailable: "GitLab isn't available right now. Contact support if this continues.",
+  bitbucket_repository_target_required:
+    "Choose a Bitbucket repository before enabling Bitbucket tools.",
+  bitbucket_repository_exclusive:
+    "Bitbucket can't be enabled with GitHub or GitLab on the same automation.",
+  bitbucket_agent_trigger_required:
+    "Use Bitbucket repo automations with a scheduled or manual trigger.",
+  bitbucket_not_connected: "Connect Bitbucket in Integrations before using it.",
   project_required: "Choose a Hyperlocalise project for this automation.",
   github_project_required: "Choose a Hyperlocalise project for this automation.",
   contentful_project_required: "Choose a Hyperlocalise project for this automation.",
@@ -468,6 +478,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     githubInstallationRepositoryId: "",
     gitlabEnabled: false,
     gitlabPathWithNamespace: "",
+    bitbucketEnabled: false,
+    bitbucketRepositoryFullName: "",
     githubEnabled: false,
     githubMode: "sync",
     pushSourceEnabled: false,
@@ -676,6 +688,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
       automation.repositoryTarget.githubInstallationRepositoryId ?? "",
     gitlabEnabled: Boolean(gitlab?.enabled),
     gitlabPathWithNamespace: automation.repositoryTarget.gitlabPathWithNamespace ?? "",
+    bitbucketEnabled: Boolean(automation.toolConfig.bitbucket?.enabled),
+    bitbucketRepositoryFullName: automation.repositoryTarget.bitbucketRepositoryFullName ?? "",
     githubEnabled: Boolean(github?.enabled),
     githubMode: github?.mode ?? "sync",
     pushSourceEnabled: Boolean(github?.pushSource),
@@ -1026,7 +1040,12 @@ export function formStateToWorkspaceAutomationPayload(
             kind: "github",
             githubInstallationRepositoryId: form.githubInstallationRepositoryId,
           }
-        : { kind: "none" };
+        : form.bitbucketEnabled && form.bitbucketRepositoryFullName.trim()
+          ? {
+              kind: "bitbucket",
+              bitbucketRepositoryFullName: form.bitbucketRepositoryFullName.trim(),
+            }
+          : { kind: "none" };
 
   const toolConfig: WorkspaceAutomationToolConfig = {
     ...(form.githubEnabled
@@ -1047,6 +1066,7 @@ export function formStateToWorkspaceAutomationPayload(
           },
         }
       : {}),
+    ...(form.bitbucketEnabled ? { bitbucket: { enabled: true } } : {}),
     ...(form.slackEnabled
       ? {
           slack: {
@@ -1653,6 +1673,9 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "gitlab_pipes_unavailable":
       return { gitlabRepository: message };
     case "gitlab_github_exclusive":
+    case "bitbucket_repository_exclusive":
+    case "bitbucket_repository_target_required":
+    case "bitbucket_not_connected":
       return { form: message };
     case "project_required":
     case "github_project_required":
@@ -1663,6 +1686,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "github_trigger_required":
     case "github_agent_trigger_required":
     case "gitlab_agent_trigger_required":
+    case "bitbucket_agent_trigger_required":
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
     case "google_drive_trigger_requires_files":
@@ -1832,6 +1856,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
   return (
     form.githubEnabled ||
     form.gitlabEnabled ||
+    form.bitbucketEnabled ||
     form.slackEnabled ||
     form.emailEnabled ||
     form.githubCommentEnabled ||

@@ -150,6 +150,25 @@ export function composeGitlabRepoInstructions(input: {
   });
 }
 
+export function composeBitbucketRepoInstructions(input: {
+  userOverride?: string | null;
+  dynamicSections?: string[];
+  templateSkillId?: string | null;
+}) {
+  const sharedSkills = [
+    "recent-source-changes",
+    ...resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null),
+  ];
+
+  return composeInstructions({
+    automationId: "github-repository",
+    sharedSkills: [...new Set(sharedSkills)],
+    skills: ["bitbucket-repo-agent"],
+    dynamicSections: input.dynamicSections,
+    userOverride: input.userOverride,
+  });
+}
+
 export function getTemplateExecutorAgent(skillId: string): string | null {
   const skill = getAgentManifest({ automationId: "workspace" }).skills[skillId];
   return skill?.frontmatter.executorAgent ?? null;

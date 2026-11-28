@@ -14,6 +14,7 @@ import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "./workspace-automation-github-mapping";
+import { hasWorkspaceAutomationBitbucketAgentTool } from "./workspace-automation-bitbucket-mapping";
 import { hasWorkspaceAutomationGitlabAgentTool } from "./workspace-automation-gitlab-mapping";
 import {
   hasWorkspaceAutomationContentfulWorkflow,
@@ -44,6 +45,7 @@ export function hasWorkspaceAutomationScheduledWorkflow(
     hasWorkspaceAutomationGithubAgentTool(toolConfig) ||
     hasWorkspaceAutomationGithubWorkflow(toolConfig) ||
     hasWorkspaceAutomationGitlabAgentTool(toolConfig) ||
+    hasWorkspaceAutomationBitbucketAgentTool(toolConfig) ||
     hasWorkspaceAutomationContentfulWorkflow(toolConfig) ||
     hasWorkspaceAutomationIntercomTool(toolConfig) ||
     hasWorkspaceAutomationSanityTool(toolConfig) ||
