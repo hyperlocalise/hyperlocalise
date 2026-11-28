@@ -1,7 +1,7 @@
 ---
 title: "AI Translation Is Not Enough: Why Global Teams Need Context-Aware Localisation"
 date: 2026-06-18T00:00:00.000Z
-excerpt: AI has made translation faster, but fluent output is not the same as good localisation. Global teams need context-aware workflows that preserve product meaning, brand intent, and customer experience.
+excerpt: AI made translation faster, but fluent output is not good localisation. Global teams need context-aware workflows that keep meaning and brand intent.
 category: Product
 tags:
   - context-aware localisation

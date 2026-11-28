@@ -21,8 +21,8 @@ export function getBlogRouteMetadata(intl: IntlShape) {
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Updates, product thinking, and lessons from building agent-native localisation workflows.",
-      id: "7OEl2Ch1Rv",
+        "Product updates, guides, and lessons from building agent-native localisation workflows for product, marketing, and growth teams.",
+      id: "tFaFupXhZ/",
       description: "Meta description for the marketing blog index page",
     }),
   };

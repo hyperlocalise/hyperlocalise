@@ -1,7 +1,7 @@
 ---
 title: "Hyperlocalise Featured in Startmate: Speaking Everyone's Language"
 date: 2026-07-17T00:00:00.000Z
-excerpt: Startmate sat down with Hyperlocalise founder Minh Cung for a conversation on cultural nuance, AI localisation, and why word-for-word translation is never enough.
+excerpt: Startmate talks with Hyperlocalise founder Minh Cung about cultural nuance, AI localisation, and why word-for-word translation is never enough.
 category: Company
 coverImage: /images/blog/startmate-speaking-everyones-language-minh-cung.png
 tags:

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: TermsPageProps): Promise<Meta
   return createLegalMetadata({
     title: "Terms of service",
     description:
-      "Cloud Service Agreement terms that govern use of Hyperlocalise websites, docs, and services.",
+      "Read the Hyperlocalise Cloud Service Agreement: the terms that govern your use of our websites, documentation, apps, APIs, and cloud services.",
     locale,
     path: "/terms",
   });

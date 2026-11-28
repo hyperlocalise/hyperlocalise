@@ -1,7 +1,7 @@
 ---
 title: "Hyperlocalise Selected for Slator Language AI 50 Under 50"
 date: 2026-07-04T00:00:00.000Z
-excerpt: Hyperlocalise has been named to Slator's 2026 Language AI 50 Under 50 — a list of the most promising new entrants shaping the future of language AI and localisation technology.
+excerpt: Hyperlocalise is named to Slator's 2026 Language AI 50 Under 50, a list of the most promising new entrants shaping language AI and localisation.
 category: Company
 coverImage: /images/blog/slator-2026-language-ai-50-under-50.png
 tags:

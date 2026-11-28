@@ -1,7 +1,7 @@
 ---
 title: What the EU AI Act Article 50 Means for AI Translation and Localisation
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
+excerpt: Article 50 of the EU AI Act applies from August 2026. Most AI translation needs no label, but transparency still matters for agents and transcreation.
 category: Product
 tags:
   - EU AI Act

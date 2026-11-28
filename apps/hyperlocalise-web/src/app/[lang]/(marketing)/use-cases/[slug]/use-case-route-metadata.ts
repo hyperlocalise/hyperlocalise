@@ -52,8 +52,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Detect help center changes, translate only what changed, review with support, and publish to every locale. A freshness view flags any language that falls behind.",
-          id: "zqp1dSrBHD",
+            "Detect help center changes, translate only what changed, review with support, and publish to every locale. See which languages fall behind.",
+          id: "sqeLz0KrLX",
           description: "Meta description for the help-center-localisation use case",
         }),
       };
@@ -81,8 +81,8 @@ export function getUseCaseRouteMetadata(slug: string, intl: IntlShape) {
         }),
         description: intl.formatMessage({
           defaultMessage:
-            "Turn one brief into copy, landing pages, emails, and creative for every market, with brand checks and local approvals built in, so every market launches together.",
-          id: "GvWrNycq6V",
+            "Turn one brief into copy, landing pages, emails, and creative for every market, with brand checks and local approvals, so every market launches together.",
+          id: "DcVli4ICZF",
           description: "Meta description for the marketing-localisation use case",
         }),
       };

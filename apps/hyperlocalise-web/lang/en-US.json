@@ -1931,10 +1931,6 @@
     "defaultMessage": "Hreflang, coverage, and localisation health checked across your site.",
     "description": "market-entry use case page: shift › after › #3"
   },
-  "0S1pdjIx4Z": {
-    "defaultMessage": "Email the Hyperlocalise team about localisation, pricing, or support.",
-    "description": "Meta description for the marketing contact page"
-  },
   "0So/h7Alas": {
     "defaultMessage": "Set it up in minutes. The same commands run on your machine and in CI.",
     "description": "localisation-cli-and-api use case page: guide › body"
@@ -7231,10 +7227,6 @@
     "defaultMessage": "United States",
     "description": "Storyblok region option for the United States"
   },
-  "7OEl2Ch1Rv": {
-    "defaultMessage": "Updates, product thinking, and lessons from building agent-native localisation workflows.",
-    "description": "Meta description for the marketing blog index page"
-  },
   "7OFNvD/Tg3": {
     "defaultMessage": "Failed to load files",
     "description": "Fallback error when native project files fail to load"
@@ -12015,6 +12007,10 @@
     "defaultMessage": "Clear",
     "description": "Button label to clear a native segment max length"
   },
+  "DcVli4ICZF": {
+    "defaultMessage": "Turn one brief into copy, landing pages, emails, and creative for every market, with brand checks and local approvals, so every market launches together.",
+    "description": "Meta description for the marketing-localisation use case"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet.",
     "description": "Empty state when the organization has no inbox conversations"
@@ -14450,10 +14446,6 @@
   "GvUbPf6mr6": {
     "defaultMessage": "Add a domain",
     "description": "Dialog title"
-  },
-  "GvWrNycq6V": {
-    "defaultMessage": "Turn one brief into copy, landing pages, emails, and creative for every market, with brand checks and local approvals built in, so every market launches together.",
-    "description": "Meta description for the marketing-localisation use case"
   },
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}",
@@ -24547,10 +24539,6 @@
     "defaultMessage": "No tasks with Reports data match.",
     "description": "Shown when the task search finds nothing"
   },
-  "UWS4Z91lmP": {
-    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine for multilingual assets. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
-    "description": "Meta description for the Iris product page"
-  },
   "UWZ1G1FSvB": {
     "defaultMessage": "Untranslated first",
     "description": "CAT queue sort option that shows untranslated segments first"
@@ -24710,6 +24698,10 @@
   "UjtfsCANFW": {
     "defaultMessage": "Use at most {max, number} characters.",
     "description": "Validation error when a project template field is too long"
+  },
+  "UkLJNambdC": {
+    "defaultMessage": "Iris is Hyperlocalise's AI localisation engine. Create and adapt images, video, motion, and audio for every language. Download Iris for Mac.",
+    "description": "Meta description for the Iris product page"
   },
   "UkPonG/OHc": {
     "defaultMessage": "Integration limit reached for your current plan. Remove an unused integration or upgrade, then try again.",
@@ -30799,6 +30791,10 @@
     "defaultMessage": "Projects unavailable",
     "description": "Project selector label when workspace projects failed to load"
   },
+  "cvGQTrTQTr": {
+    "defaultMessage": "Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts in every market you launch.",
+    "description": "Meta description for the marketing company page"
+  },
   "cvuRKz2hMS": {
     "defaultMessage": "Scheduled run",
     "description": "Flow node label"
@@ -36703,6 +36699,10 @@
     "defaultMessage": "Name",
     "description": "Label for the CDN destination name"
   },
+  "kRSrd7vo4l": {
+    "defaultMessage": "Contact the Hyperlocalise team about AI localisation, pricing, enterprise plans, integrations, partnerships, or product support.",
+    "description": "Meta description for the marketing contact page"
+  },
   "kRTpEdy6V8": {
     "defaultMessage": "Person",
     "description": "Column heading: who logged the time"
@@ -40747,10 +40747,6 @@
     "defaultMessage": "Translation starts",
     "description": "localisation-for-ai-coding-agents use case page: scenario › events › #3 › title"
   },
-  "ph6IrwwW1W": {
-    "defaultMessage": "Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.",
-    "description": "Meta description for the marketing company page"
-  },
   "ph90oK4r7v": {
     "defaultMessage": "Invitation sent",
     "description": "Success toast after inviting a workspace member"
@@ -43159,6 +43155,10 @@
     "defaultMessage": "Close Queries",
     "description": "Accessible label for closing the CAT Queries panel"
   },
+  "sqeLz0KrLX": {
+    "defaultMessage": "Detect help center changes, translate only what changed, review with support, and publish to every locale. See which languages fall behind.",
+    "description": "Meta description for the help-center-localisation use case"
+  },
   "sqlMQdTjGd": {
     "defaultMessage": "Paid",
     "description": "Column heading: what the person's work cost"
@@ -43450,6 +43450,10 @@
   "tFGX4qNX4h": {
     "defaultMessage": "Unlimited translation jobs",
     "description": "Growth plan feature: unlimited translation jobs"
+  },
+  "tFaFupXhZ/": {
+    "defaultMessage": "Product updates, guides, and lessons from building agent-native localisation workflows for product, marketing, and growth teams.",
+    "description": "Meta description for the marketing blog index page"
   },
   "tFwg80J8SU": {
     "defaultMessage": "No Hyperlocalise projects yet. <action>Create one</action> to add translation context and job tracking.",
@@ -48482,10 +48486,6 @@
   "zpXEO84HvX": {
     "defaultMessage": "A run uses the automation as it was last saved. Save your changes to run with them, or discard them and run the saved automation.",
     "description": "Body of the dialog shown when a run is started while the automation has unsaved changes"
-  },
-  "zqp1dSrBHD": {
-    "defaultMessage": "Detect help center changes, translate only what changed, review with support, and publish to every locale. A freshness view flags any language that falls behind.",
-    "description": "Meta description for the help-center-localisation use case"
   },
   "zqqpXZqkv/": {
     "defaultMessage": "AI answer mentions",

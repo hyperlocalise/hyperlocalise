@@ -1,7 +1,7 @@
 ---
 title: Best AI Localisation Platforms for Product Teams in 2026
 date: 2026-07-25T00:00:00.000Z
-excerpt: Compare five leading AI localisation platforms for product teams — Hyperlocalise, Crowdin, Phrase, Lokalise, and LILT — and how to choose the right one for continuous product releases.
+excerpt: "Compare five AI localisation platforms for product teams: Hyperlocalise, Crowdin, Phrase, Lokalise, and LILT, and how to choose for continuous releases."
 category: Product
 tags:
   - AI localisation

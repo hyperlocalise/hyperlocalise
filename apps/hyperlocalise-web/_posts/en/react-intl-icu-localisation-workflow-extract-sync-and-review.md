@@ -1,7 +1,7 @@
 ---
 title: "React Intl and ICU Localisation: Extract, Sync, and Review with Hyperlocalise"
 date: 2026-09-24T00:00:00.000Z
-excerpt: Wire react-intl and ICU message syntax into a repo-native workflow—extract catalogs with the Hyperlocalise CLI, validate plurals in pull requests, review in Hyperlocalise, and ship translated JSON to production.
+excerpt: "Wire react-intl and ICU messages into a repo-native workflow: extract with the Hyperlocalise CLI, validate plurals in pull requests, and ship translations."
 category: Engineering
 tags:
   - react-intl

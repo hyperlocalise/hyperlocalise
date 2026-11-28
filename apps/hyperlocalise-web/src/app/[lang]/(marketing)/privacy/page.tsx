@@ -27,7 +27,8 @@ export async function generateMetadata({ params }: PrivacyPageProps): Promise<Me
 
   return createLegalMetadata({
     title: "Privacy policy",
-    description: "How Hyperlocalise handles account, usage, and provider-related data.",
+    description:
+      "How Hyperlocalise collects, uses, stores, and protects account, usage, and provider-related data, and the choices you have about your information.",
     locale,
     path: "/privacy",
   });

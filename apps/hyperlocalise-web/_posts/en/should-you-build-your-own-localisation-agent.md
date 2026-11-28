@@ -1,7 +1,7 @@
 ---
 title: Should You Build Your Own Localisation Agent?
 date: 2026-07-25T00:00:00.000Z
-excerpt: An impressive AI translation demo is easy to build. A dependable localisation agent that understands context, protects product integrity, and improves through human feedback is a much larger undertaking. Here is how to decide whether to build or buy.
+excerpt: An AI translation demo is easy. A dependable localisation agent with context, safeguards, and human feedback is not. How to decide whether to build or buy.
 category: Product
 tags:
   - localisation agent

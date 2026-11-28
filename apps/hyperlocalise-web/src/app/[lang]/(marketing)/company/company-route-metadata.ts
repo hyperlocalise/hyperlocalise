@@ -21,8 +21,8 @@ export function getCompanyRouteMetadata(intl: IntlShape) {
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts.",
-      id: "ph6IrwwW1W",
+        "Meet the Hyperlocalise founders and our mission: an AI workforce that acts like your team of local experts in every market you launch.",
+      id: "cvGQTrTQTr",
       description: "Meta description for the marketing company page",
     }),
   };

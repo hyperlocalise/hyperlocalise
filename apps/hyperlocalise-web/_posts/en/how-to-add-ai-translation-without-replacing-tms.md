@@ -1,7 +1,7 @@
 ---
 title: How to Add AI Translation Without Replacing Phrase, Lokalise, Crowdin, or Smartling
 date: 2026-07-01T00:00:00.000Z
-excerpt: AI translation does not have to mean ripping out your TMS. Learn how to add an intelligence layer around Phrase, Lokalise, Crowdin, Smartling, and the workflows you already run.
+excerpt: AI translation does not mean ripping out your TMS. Add an intelligence layer around Phrase, Lokalise, Crowdin, Smartling, and the workflows you run.
 category: Product
 tags:
   - AI translation
