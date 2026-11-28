@@ -24,7 +24,14 @@ import {
   UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import { UnicornIcon } from "@/components/unicorn-icon/unicorn-icon";
-import { siGithub, siGoogledrive, siIntercom, siSanity, siWebflow } from "simple-icons";
+import {
+  siGithub,
+  siGoogledrive,
+  siIntercom,
+  siSanity,
+  siStoryblok,
+  siWebflow,
+} from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -44,6 +51,7 @@ type IconBucket =
   | "intercom"
   | "sanity"
   | "webflow"
+  | "storyblok"
   | "google-drive"
   | "braze"
   | "iterable"
@@ -66,6 +74,7 @@ const BRAND_TOOL_IDS = new Set([
   "iterable",
   "contentful",
   "webflow",
+  "storyblok",
   "customer-io",
   "loops",
   "hubspot",
@@ -97,6 +106,8 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
       return "sanity";
     case "webflow":
       return "webflow";
+    case "storyblok":
+      return "storyblok";
     case "google-drive":
       return "google-drive";
     case "braze":
@@ -165,6 +176,8 @@ function FlowIcon({ bucket, className }: { bucket: IconBucket; className?: strin
       return <SimpleBrandIcon icon={siSanity} colored className={iconClassName} />;
     case "webflow":
       return <SimpleBrandIcon icon={siWebflow} colored className={iconClassName} />;
+    case "storyblok":
+      return <SimpleBrandIcon icon={siStoryblok} colored className={iconClassName} />;
     case "google-drive":
       return <SimpleBrandIcon icon={siGoogledrive} colored className={iconClassName} />;
     case "braze":

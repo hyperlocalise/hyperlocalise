@@ -33,6 +33,7 @@ export type WorkspaceAutomationSkillDefaults = {
   crowdinProjectId?: string;
   contentfulConnectionId?: string;
   webflowConnectionId?: string;
+  storyblokConnectionId?: string;
 };
 
 export type WorkspaceAutomationSkillAvailability =
@@ -78,6 +79,8 @@ export const WORKSPACE_AUTOMATION_SKILL_TOOL_FIELDS: Record<
   ],
   import_webflow_items: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
   push_webflow_translations: ["webflowConnectionId", "webflowCollectionIds", "projectId"],
+  import_storyblok_stories: ["storyblokConnectionId", "projectId"],
+  push_storyblok_translations: ["storyblokConnectionId", "projectId"],
   import_google_drive_files: ["googleDrive", "projectId"],
   push_google_drive_translations: ["googleDrive", "projectId"],
   import_braze_templates: ["projectId"],
@@ -175,6 +178,13 @@ function enableSkillTool(
         ...form,
         webflowEnabled: true,
         webflowConnectionId: form.webflowConnectionId || defaults.webflowConnectionId || "",
+      };
+    case "import_storyblok_stories":
+    case "push_storyblok_translations":
+      return {
+        ...form,
+        storyblokEnabled: true,
+        storyblokConnectionId: form.storyblokConnectionId || defaults.storyblokConnectionId || "",
       };
     case "import_google_drive_files":
     case "push_google_drive_translations":
@@ -324,6 +334,9 @@ function disableSkillTool(
     case "import_webflow_items":
     case "push_webflow_translations":
       return { ...form, webflowEnabled: false };
+    case "import_storyblok_stories":
+    case "push_storyblok_translations":
+      return { ...form, storyblokEnabled: false };
     case "import_google_drive_files":
     case "push_google_drive_translations":
       return { ...form, googleDriveEnabled: false };

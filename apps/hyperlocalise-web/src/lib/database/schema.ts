@@ -27,6 +27,7 @@ export * from "./schema/github";
 export * from "./schema/integrations";
 export * from "./schema/contentful";
 export * from "./schema/webflow";
+export * from "./schema/storyblok";
 export * from "./schema/mcp-server-connections";
 export * from "./schema/gitlab";
 export * from "./schema/semrush";

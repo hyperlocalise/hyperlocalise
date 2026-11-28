@@ -29,6 +29,7 @@ import {
   siSanity,
   siSemrush,
   siSimilarweb,
+  siStoryblok,
   siWebflow,
 } from "simple-icons";
 
@@ -49,6 +50,7 @@ export const integrationIconsByKey: Record<IntegrationIconKey, SimpleIcon> = {
   atlassian: siAtlassian,
   similarweb: siSimilarweb,
   webflow: siWebflow,
+  storyblok: siStoryblok,
   sanity: siSanity,
 };
 
@@ -68,6 +70,7 @@ const integrationIconsBySlug: Partial<Record<string, SimpleIcon>> = {
   semrush: siSemrush,
   similarweb: siSimilarweb,
   webflow: siWebflow,
+  storyblok: siStoryblok,
   "google-drive": siGoogledrive,
   "google-search-console": siGooglesearchconsole,
 };

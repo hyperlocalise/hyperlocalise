@@ -38,6 +38,7 @@ import { createSanityConnectionRoutes } from "./routes/sanity-connection/sanity-
 import { createGoogleDriveRoutes } from "./routes/google-drive/google-drive.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createWebflowConnectionRoutes } from "./routes/webflow-connection/webflow-connection.route";
+import { createStoryblokConnectionRoutes } from "./routes/storyblok-connection/storyblok-connection.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createBrazeRoutes } from "./routes/braze/braze.route";
@@ -197,6 +198,7 @@ export function createOrgIntegrationsRoutes() {
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/webflow-connections", createWebflowConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
+    .route("/storyblok-connections", createStoryblokConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/zernio-connections", createZernioConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())

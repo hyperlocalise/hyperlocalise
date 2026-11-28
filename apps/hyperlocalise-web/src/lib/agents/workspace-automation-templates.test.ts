@@ -66,6 +66,7 @@ describe("workspace automation templates", () => {
       "translate-on-source-upload",
       "translate-intercom-articles",
       "translate-webflow-items",
+      "translate-storyblok-stories",
       "translate-sanity-documents",
       "translate-google-drive-files",
       "translate-braze-email-templates",

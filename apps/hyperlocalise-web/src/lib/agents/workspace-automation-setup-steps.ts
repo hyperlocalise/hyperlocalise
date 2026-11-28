@@ -54,6 +54,7 @@ export const WORKSPACE_AUTOMATION_INTEGRATION_NAMES: Record<
   intercom: "Intercom",
   sanity: "Sanity",
   webflow: "Webflow",
+  storyblok: "Storyblok",
   google_drive: "Google Drive",
   braze: "Braze",
   customer_io: "Customer.io",

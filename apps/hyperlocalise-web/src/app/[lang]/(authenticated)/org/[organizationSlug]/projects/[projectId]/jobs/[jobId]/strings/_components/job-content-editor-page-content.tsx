@@ -64,6 +64,8 @@ import { ContentEditorSanityIngestButton } from "@/components/content-editor/pag
 import { ContentEditorSanityPushButton } from "@/components/content-editor/page/content-editor-sanity-push-button";
 import { ContentEditorWebflowIngestButton } from "@/components/content-editor/page/content-editor-webflow-ingest-button";
 import { ContentEditorWebflowPushButton } from "@/components/content-editor/page/content-editor-webflow-push-button";
+import { ContentEditorStoryblokIngestButton } from "@/components/content-editor/page/content-editor-storyblok-ingest-button";
+import { ContentEditorStoryblokPushButton } from "@/components/content-editor/page/content-editor-storyblok-push-button";
 import { ContentEditorPageRoot } from "@/components/content-editor/page/content-editor-page-root";
 import { createContentEditorLoadingWorkspaceState } from "@/components/content-editor/project-file/project-file-content-editor-mapper";
 import { ProjectFileContentEditorWorkspace } from "@/components/content-editor/project-file/project-file-content-editor-workspace";
@@ -280,6 +282,20 @@ export function JobContentEditorPageContent({
         pageNavigationGuardRef={pageNavigationGuardRef}
       />
       <ContentEditorWebflowPushButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorStoryblokIngestButton
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageAutomations={canManageAutomations}
+        sourcePath={sourcePath}
+        pageNavigationGuardRef={pageNavigationGuardRef}
+      />
+      <ContentEditorStoryblokPushButton
         organizationSlug={organizationSlug}
         projectId={projectId}
         canManageAutomations={canManageAutomations}

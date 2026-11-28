@@ -58,6 +58,7 @@ import {
 } from "@/lib/sanity/sanity-locale";
 import { WebflowDataClient } from "@/lib/webflow/client";
 import { loadWebflowConnectionWithToken } from "@/lib/webflow/webflow-connection-access";
+import { loadStoryblokConnectionWithToken } from "@/lib/storyblok/storyblok-connection-access";
 import {
   areWebflowSourceLocalesCompatible,
   mapProjectLocalesToWebflow,
@@ -112,6 +113,7 @@ import {
   hasWorkspaceAutomationIntercomTool,
   hasWorkspaceAutomationSanityTool,
   hasWorkspaceAutomationWebflowTool,
+  hasWorkspaceAutomationStoryblokTool,
   hasWorkspaceAutomationListIssuesTool,
   hoistLegacyWorkspaceAutomationProjectId,
   normalizeRepositoryTarget,
@@ -1197,10 +1199,38 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.storyblok?.enabled) {
+    const storyblok = input.toolConfig.storyblok;
+    if (!storyblok.connectionId) {
+      return err({
+        code: "storyblok_connection_required",
+        message: "Choose a Storyblok connection.",
+      });
+    }
+    const loaded = await loadStoryblokConnectionWithToken({
+      organizationId: input.organizationId,
+      connectionId: storyblok.connectionId,
+    });
+    if (!loaded) {
+      return err({
+        code: "storyblok_not_connected",
+        message:
+          "The selected Storyblok connection was not found. Choose it again in the automation editor.",
+      });
+    }
+    if (!loaded.token) {
+      return err({
+        code: "storyblok_not_connected",
+        message: "Reconnect Storyblok in Integrations before using it.",
+      });
+    }
+  }
+
   const cmsToolCount = [
     hasWorkspaceAutomationIntercomTool(input.toolConfig),
     hasWorkspaceAutomationSanityTool(input.toolConfig),
     hasWorkspaceAutomationWebflowTool(input.toolConfig),
+    hasWorkspaceAutomationStoryblokTool(input.toolConfig),
     hasWorkspaceAutomationBrazeTool(input.toolConfig),
     hasWorkspaceAutomationBrazeCampaignsTool(input.toolConfig),
     hasWorkspaceAutomationLoopsTool(input.toolConfig),
@@ -1216,6 +1246,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       !hasWorkspaceAutomationIntercomTool(input.toolConfig) &&
       !hasWorkspaceAutomationSanityTool(input.toolConfig) &&
       !hasWorkspaceAutomationWebflowTool(input.toolConfig) &&
+      !hasWorkspaceAutomationStoryblokTool(input.toolConfig) &&
       !hasWorkspaceAutomationLoopsTool(input.toolConfig) &&
       !hasWorkspaceAutomationHubspotTool(input.toolConfig) &&
       !hasWorkspaceAutomationMailchimpTool(input.toolConfig) &&

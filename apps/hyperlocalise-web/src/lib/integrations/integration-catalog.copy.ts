@@ -1174,6 +1174,18 @@ export const integrationCatalogCopy = {
       description: "Webflow integration description on the integrations page",
     },
   },
+  storyblok: {
+    name: {
+      defaultMessage: "Storyblok",
+      id: "intStoryblokName",
+      description: "Storyblok integration name on the integrations page",
+    },
+    tagline: {
+      defaultMessage: "Localize Storyblok stories with field-level translations.",
+      id: "intStoryblokTagline",
+      description: "Storyblok integration description on the integrations page",
+    },
+  },
   sanity: {
     name: {
       defaultMessage: "Sanity",
